@@ -584,6 +584,7 @@ function PinesTab() {
 function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msgDist, errDist, onAprobar, onRechazar, onRefresh }) {
   const [motivoMap, setMotivoMap] = useState({});   // id -> string
   const [confirmReject, setConfirmReject] = useState(null); // id o null
+  const [verImg, setVerImg] = useState(null); // dataUrl para modal
   const ESTADO_COLOR_D = { PENDIENTE: '#f59e0b', APROBADA: '#8dc63f', RECHAZADA: '#f87171', CANCELADA: '#6b7a8d' };
 
   if (loadingDist) return <div style={{ textAlign: 'center', padding: 40, color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>Cargando solicitudes...</div>;
@@ -656,6 +657,34 @@ function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msg
                   ))}
                 </div>
 
+                {/* Comprobante de pago */}
+                {(sol.referencia_pago || sol.comprobante_url) && (
+                  <div style={{ background: '#0a0e1a', borderRadius: 8, padding: '12px 14px', marginBottom: 12, border: '1px solid #8dc63f30' }}>
+                    <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 8 }}>✓ COMPROBANTE DE PAGO</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                      {sol.comprobante_url && (
+                        <img src={sol.comprobante_url} alt="comprobante" onClick={() => setVerImg(sol.comprobante_url)}
+                          style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, cursor: 'zoom-in', border: '1px solid #8dc63f40', flexShrink: 0 }}
+                          title="Haz clic para ampliar" />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        {sol.referencia_pago && (
+                          <div style={{ marginBottom: 4 }}>
+                            <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 9, letterSpacing: '0.06em', marginBottom: 2 }}>REFERENCIA / CÓDIGO</div>
+                            <div style={{ color: '#8dc63f', fontFamily: 'Roboto Mono, monospace', fontSize: 13, fontWeight: 600, letterSpacing: 1 }}>{sol.referencia_pago}</div>
+                          </div>
+                        )}
+                        {sol.comprobante_url && (
+                          <button onClick={() => setVerImg(sol.comprobante_url)}
+                            style={{ background: 'transparent', border: '1px solid #8dc63f40', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', marginTop: 4 }}>
+                            🔍 VER COMPROBANTE
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Notas del distribuidor */}
                 {sol.notas && (
                   <div style={{ background: '#0a0e1a', borderRadius: 6, padding: '8px 12px', marginBottom: 12, borderLeft: '2px solid #f59e0b50' }}>
@@ -723,6 +752,15 @@ function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msg
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal comprobante */}
+      {verImg && (
+        <div onClick={() => setVerImg(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' }}>
+          <img src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
+          <div style={{ position: 'absolute', top: 20, right: 24, color: '#fff', fontSize: 28, cursor: 'pointer', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</div>
         </div>
       )}
     </div>

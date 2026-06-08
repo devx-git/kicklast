@@ -482,9 +482,20 @@ function SolicitarPinesTab() {
   const [paqueteSel, setPaqueteSel] = useState(null);
   const [custom, setCustom] = useState({ cantidad: '', valor: '1' });
   const [nota, setNota] = useState('');
+  const [referencia, setReferencia] = useState('');
+  const [comprobante, setComprobante] = useState(null); // { dataUrl, nombre }
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const [verImg, setVerImg] = useState(null); // dataUrl para modal de comprobante
+
+  const leerArchivo = (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setErr('El comprobante no puede superar 5 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => setComprobante({ dataUrl: e.target.result, nombre: file.name });
+    reader.readAsDataURL(file);
+  };
 
   const cargar = () => {
     api.get('/pines/distribuidor/mis-solicitudes')
@@ -512,13 +523,16 @@ function SolicitarPinesTab() {
     setEnviando(true);
     try {
       await api.post('/pines/distribuidor/solicitar', {
-        paquete_id:     modo === 'paquete' ? paqueteSel.id : 'personalizado',
+        paquete_id:      modo === 'paquete' ? paqueteSel.id : 'personalizado',
         cantidad,
-        valor_unitario: valor,
-        notas:          nota || undefined,
+        valor_unitario:  valor,
+        notas:           nota       || undefined,
+        referencia_pago: referencia || undefined,
+        comprobante_url: comprobante?.dataUrl || undefined,
       });
-      setMsg(`✓ Solicitud enviada — ${cantidad} pines × $${valor} = $${cantidad * valor} USD. Tu promotor recibirá una notificación.`);
-      setModo(null); setPaqueteSel(null); setCustom({ cantidad: '', valor: '1' }); setNota('');
+      setMsg(`✓ Solicitud enviada — ${cantidad} pines × $${valor} = $${cantidad * valor} USD. Tu promotor recibirá la notificación con tu comprobante.`);
+      setModo(null); setPaqueteSel(null); setCustom({ cantidad: '', valor: '1' });
+      setNota(''); setReferencia(''); setComprobante(null);
       cargar();
     } catch (ex) {
       const m = ex.response?.data?.message;
@@ -603,16 +617,64 @@ function SolicitarPinesTab() {
         </div>
       )}
 
-      {/* Nota + botón */}
+      {/* Comprobante + Nota + Botón */}
       {modo && (
         <div style={{ ...CARD, marginBottom: 24 }}>
+          {/* Resumen selección */}
+          {modo === 'paquete' && paqueteSel && (
+            <div style={{ marginBottom: 14, padding: '10px 14px', background: '#0a0d14', borderRadius: 6, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
+              Solicitando: <strong style={{ color: paqueteSel.color }}>{paqueteSel.cantidad} pines</strong> × ${paqueteSel.valor} = <strong style={{ color: paqueteSel.color }}>${paqueteSel.cantidad * paqueteSel.valor} USD</strong>
+            </div>
+          )}
+
+          {/* Referencia de pago */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={LABEL}>REFERENCIA / CÓDIGO DE TRANSFERENCIA <span style={{ color: '#f59e0b' }}>*</span></label>
+            <input type="text" value={referencia} onChange={e => setReferencia(e.target.value)}
+              placeholder="Ej: REF-2024-0012345 / código de la transacción..."
+              style={{ ...INPUT, borderColor: referencia ? '#8dc63f50' : '#1e2a3a' }} />
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 4 }}>
+              Número de referencia, código de confirmación o ID de la transferencia realizada
+            </div>
+          </div>
+
+          {/* Comprobante imagen */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={LABEL}>COMPROBANTE DE PAGO (imagen) <span style={{ color: '#f59e0b' }}>*</span></label>
+            {comprobante ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0a0e1a', border: '1px solid #8dc63f40', borderRadius: 8, padding: '10px 14px' }}>
+                <img src={comprobante.dataUrl} alt="comprobante" onClick={() => setVerImg(comprobante.dataUrl)}
+                  style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: '1px solid #8dc63f30' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 12, fontWeight: 600 }}>✓ {comprobante.nombre}</div>
+                  <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginTop: 2 }}>Haz clic en la imagen para ampliar</div>
+                </div>
+                <button onClick={() => setComprobante(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16, padding: 4 }}>✕</button>
+              </div>
+            ) : (
+              <label style={{ display: 'block', cursor: 'pointer' }}>
+                <div style={{ background: '#0a0e1a', border: '2px dashed #1e2a3a', borderRadius: 8, padding: '20px', textAlign: 'center', transition: 'border-color 0.15s' }}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#a78bfa'; }}
+                  onDragLeave={e => { e.currentTarget.style.borderColor = '#1e2a3a'; }}
+                  onDrop={e => { e.preventDefault(); leerArchivo(e.dataTransfer.files[0]); e.currentTarget.style.borderColor = '#1e2a3a'; }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>📎</div>
+                  <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700 }}>SUBIR COMPROBANTE</div>
+                  <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginTop: 4 }}>JPG, PNG, PDF · máx. 5 MB · o arrastra aquí</div>
+                </div>
+                <input type="file" accept="image/*,.pdf" onChange={e => leerArchivo(e.target.files[0])} style={{ display: 'none' }} />
+              </label>
+            )}
+          </div>
+
+          {/* Nota + botones */}
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <label style={LABEL}>NOTA PARA TU PROMOTOR (opcional)</label>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={LABEL}>NOTA ADICIONAL (opcional)</label>
               <input type="text" value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: Para el evento del sábado..." style={INPUT} />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2, gap: 8 }}>
-              <button onClick={() => { setModo(null); setPaqueteSel(null); setErr(''); }}
+              <button onClick={() => { setModo(null); setPaqueteSel(null); setErr(''); setComprobante(null); setReferencia(''); }}
                 style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: '1px solid #1e2a3a', cursor: 'pointer' }}>
                 CANCELAR
               </button>
@@ -622,12 +684,15 @@ function SolicitarPinesTab() {
               </button>
             </div>
           </div>
-          {/* Resumen selección */}
-          {modo === 'paquete' && paqueteSel && (
-            <div style={{ marginTop: 14, padding: '10px 14px', background: '#0a0d14', borderRadius: 6, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-              Solicitando: <strong style={{ color: paqueteSel.color }}>{paqueteSel.cantidad} pines</strong> × ${paqueteSel.valor} = <strong style={{ color: paqueteSel.color }}>${paqueteSel.cantidad * paqueteSel.valor} USD</strong>
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Modal ver comprobante */}
+      {verImg && (
+        <div onClick={() => setVerImg(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' }}>
+          <img src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
+          <div style={{ position: 'absolute', top: 20, right: 24, color: '#fff', fontSize: 28, cursor: 'pointer' }}>✕</div>
         </div>
       )}
 
@@ -645,33 +710,44 @@ function SolicitarPinesTab() {
             const est = ESTADO_COLOR_DIST[s.estado] || ESTADO_COLOR_DIST.PENDIENTE;
             const pkg = PAQUETES.find(p => p.id === s.paquete_id);
             return (
-              <div key={s.id} style={{ ...CARD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                      {s.cantidad} pines {pkg ? `· ${pkg.nombre}` : '· Personalizado'}
-                    </span>
-                    <span style={{ background: est.bg, color: est.color, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, letterSpacing: '0.06em' }}>{est.label}</span>
-                  </div>
-                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>
-                    ${Number(s.valor_unitario)} c/u · Total ${Number(s.valor_total)} USD · {new Date(s.created_at).toLocaleDateString('es-CO')}
-                  </div>
-                  {s.notas && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 3 }}>Nota: {s.notas}</div>}
-                  {s.notas_promotor && s.estado !== 'PENDIENTE' && (
-                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: s.estado === 'RECHAZADA' ? '#f87171' : '#6b7a8d', marginTop: 3 }}>
-                      Promotor: {s.notas_promotor}
+              <div key={s.id} style={{ ...CARD, border: `1px solid ${s.estado === 'PENDIENTE' ? '#f59e0b20' : '#1e2a3a'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                        {s.cantidad} pines {pkg ? `· ${pkg.nombre}` : '· Personalizado'}
+                      </span>
+                      <span style={{ background: est.bg, color: est.color, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, letterSpacing: '0.06em' }}>{est.label}</span>
                     </div>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700 }}>
-                    ${Number(s.valor_total)} USD
-                  </div>
-                  {s.revisado_en && (
-                    <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
-                      Revisado {new Date(s.revisado_en).toLocaleDateString('es-CO')}
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>
+                      ${Number(s.valor_unitario)} c/u · Total ${Number(s.valor_total)} USD · {new Date(s.created_at).toLocaleDateString('es-CO')}
                     </div>
-                  )}
+                    {s.referencia_pago && (
+                      <div style={{ fontFamily: 'Roboto Mono, monospace', fontSize: 11, color: '#8dc63f', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ color: '#4a5568' }}>Ref:</span> {s.referencia_pago}
+                      </div>
+                    )}
+                    {s.notas && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 3 }}>Nota: {s.notas}</div>}
+                    {s.notas_promotor && s.estado !== 'PENDIENTE' && (
+                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: s.estado === 'RECHAZADA' ? '#f87171' : '#6b7a8d', marginTop: 3 }}>
+                        Promotor: {s.notas_promotor}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700 }}>
+                      ${Number(s.valor_total)} USD
+                    </div>
+                    {s.revisado_en && (
+                      <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        Revisado {new Date(s.revisado_en).toLocaleDateString('es-CO')}
+                      </div>
+                    )}
+                    {s.comprobante_url && (
+                      <img src={s.comprobante_url} alt="comprobante" onClick={() => setVerImg(s.comprobante_url)}
+                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 5, cursor: 'pointer', border: '1px solid #8dc63f40' }} title="Ver comprobante" />
+                    )}
+                  </div>
                 </div>
               </div>
             );

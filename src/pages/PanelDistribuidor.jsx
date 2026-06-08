@@ -771,6 +771,7 @@ function MisPinesTab() {
   const [data, setData]           = useState({ resumen: {}, pines: [] });
   const [loading, setLoading]     = useState(true);
   const [filtro, setFiltro]       = useState('TODOS');
+  const [filtroValor, setFiltroValor] = useState(0);  // 0 = todos los valores
   const [verImg, setVerImg]       = useState(null);
   const [vendiendo, setVendiendo] = useState(null);   // id del pin en proceso
   const [formVenta, setFormVenta] = useState({});     // { [pinId]: { vendido_a, open } }
@@ -807,8 +808,14 @@ function MisPinesTab() {
     [id]: { ...prev[id], open: !prev[id]?.open }
   }));
 
+  const VALORES_FILTRO = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 100];
+
   const { resumen, pines = [] } = data;
-  const pinsFiltrados = filtro === 'TODOS' ? pines : pines.filter(p => p.estado === filtro);
+  const pinsFiltrados = pines.filter(p => {
+    const estadoOk = filtro === 'TODOS' || p.estado === filtro;
+    const valorOk  = filtroValor === 0  || Number(p.creditos) === filtroValor;
+    return estadoOk && valorOk;
+  });
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>Cargando pines...</div>;
 
@@ -840,6 +847,35 @@ function MisPinesTab() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
           <button onClick={cargar} style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '8px 14px', borderRadius: 6, cursor: 'pointer' }}>↻ ACTUALIZAR</button>
         </div>
+      </div>
+
+      {/* Filtro por valor de pin */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 20, padding: '10px 14px', background: '#0a0e1a', borderRadius: 8, border: '1px solid #1e2a3a' }}>
+        <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, letterSpacing: '0.06em', marginRight: 4, whiteSpace: 'nowrap' }}>VALOR:</span>
+        {[0, ...VALORES_FILTRO].map(v => {
+          const active = filtroValor === v;
+          return (
+            <button key={v} onClick={() => setFiltroValor(v)} style={{
+              background:  active ? 'rgba(141,198,63,0.15)' : 'transparent',
+              border:      `1px solid ${active ? '#8dc63f' : '#1e2a3a'}`,
+              color:       active ? '#8dc63f' : '#6b7a8d',
+              fontFamily:  'Oswald, sans-serif',
+              fontSize:    11,
+              fontWeight:  active ? 700 : 400,
+              padding:     '4px 10px',
+              borderRadius: 5,
+              cursor:      'pointer',
+              whiteSpace:  'nowrap',
+            }}>
+              {v === 0 ? 'TODOS' : `$${v}`}
+            </button>
+          );
+        })}
+        {filtroValor !== 0 && (
+          <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginLeft: 6 }}>
+            — {pinsFiltrados.length} pin{pinsFiltrados.length !== 1 ? 'es' : ''}
+          </span>
+        )}
       </div>
 
       {/* Lista de pines */}

@@ -14,7 +14,7 @@ export const dataService = {
   getEventosActivos: () =>
     cached('eventos_activos', async () => {
       const { data } = await api.get('/eventos/activos');
-      return data;
+      return Array.isArray(data) ? data : (data?.data ?? data?.eventos ?? []);
     }),
 
   getEvento: (id) =>
@@ -25,14 +25,14 @@ export const dataService = {
 
   getEventosBySlug: async (slug) => {
     const { data } = await api.get(`/eventos?limit=50`);
-    const all = Array.isArray(data) ? data : [];
+    const all = Array.isArray(data) ? data : (data?.data ?? data?.eventos ?? []);
     return all.find(e => e.slug === slug) || null;
   },
 
   getCampeonatos: () =>
     cached('campeonatos', async () => {
       const { data } = await api.get('/campeonatos');
-      return data;
+      return Array.isArray(data) ? data : (data?.data ?? data?.campeonatos ?? []);
     }),
 
   getEventos: (limit = 50) =>

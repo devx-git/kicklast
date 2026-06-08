@@ -29,7 +29,7 @@ export default function Movimientos() {
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/login'); return; }
     dataService.getMisMovimientos()
-      .then(data => setMovs(data))
+      .then(data => setMovs(Array.isArray(data) ? data : []))
       .catch(e => {
         if (e.response?.status === 401) { navigate('/login'); return; }
         setError(e.response?.data?.message || 'Error al cargar movimientos');

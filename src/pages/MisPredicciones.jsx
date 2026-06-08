@@ -25,7 +25,7 @@ export default function MisPredicciones() {
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/login'); return; }
     dataService.getMisPredicciones()
-      .then(data => setPreds(data))
+      .then(data => setPreds(Array.isArray(data) ? data : []))
       .catch(e => {
         if (e.response?.status === 401) { navigate('/login'); return; }
         setError(e.response?.data?.message || 'Error al cargar predicciones');

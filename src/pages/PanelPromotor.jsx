@@ -507,29 +507,38 @@ function DashboardTab() {
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando dashboard...</div>;
   if (!data) return <div style={{ ...CARD, textAlign: 'center', padding: 40 }}><div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 14 }}>Sin datos disponibles.</div></div>;
 
-  const recHoy = data.recargas_hoy != null ? Number(data.recargas_hoy) : null;
-  const recSem = data.recargas_semana != null ? Number(data.recargas_semana) : null;
+  // El backend devuelve { resumen:{...}, eventos_activos:[...], distribuidores:[...], top_usuarios:[...] }
+  const resumen = data.resumen || data;
+  const recHoy = resumen.recargas_hoy != null ? Number(resumen.recargas_hoy) : null;
+  const recSem = resumen.recargas_semana != null ? Number(resumen.recargas_semana) : null;
+  const crHoy  = resumen.creditos_recargados_hoy != null ? Number(resumen.creditos_recargados_hoy) : null;
+  const crSem  = resumen.creditos_recargados_semana != null ? Number(resumen.creditos_recargados_semana) : null;
 
   const resumenCards = [
-    { label: 'EVENTOS ACTIVOS', val: data.eventos_activos?.length ?? 0, color: '#8dc63f', icon: '📋' },
-    { label: 'RECARGAS HOY', val: recHoy != null ? `${recHoy.toLocaleString('es-CO')} cr` : '—', sub: recHoy != null ? `≈ $${recHoy.toLocaleString('es-CO')} USD` : '', color: '#00d4ff', icon: '💳' },
-    { label: 'RECARGAS SEMANA', val: recSem != null ? `${recSem.toLocaleString('es-CO')} cr` : '—', sub: recSem != null ? `≈ $${recSem.toLocaleString('es-CO')} USD` : '', color: '#a78bfa', icon: '📈' },
-    { label: 'DISTRIBUIDORES', val: Array.isArray(data.distribuidores) ? data.distribuidores.length : (data.distribuidores ?? '—'), color: '#f59e0b', icon: '👥' },
+    { label: 'EVENTOS ACTIVOS',  val: resumen.eventos_activos ?? data.eventos_activos?.length ?? 0,   color: '#8dc63f', icon: '📋' },
+    { label: 'RECARGAS HOY',     val: recHoy != null ? `${recHoy} txn` : '—',
+      sub: crHoy != null ? `${crHoy.toLocaleString('es-CO')} cr ≈ $${crHoy.toLocaleString('es-CO')} USD` : '', color: '#00d4ff', icon: '💳' },
+    { label: 'RECARGAS SEMANA',  val: recSem != null ? `${recSem} txn` : '—',
+      sub: crSem != null ? `${crSem.toLocaleString('es-CO')} cr` : '',                                  color: '#a78bfa', icon: '📈' },
+    { label: 'DISTRIBUIDORES',   val: resumen.distribuidores_activos ?? (Array.isArray(data.distribuidores) ? data.distribuidores.length : '—'), color: '#f59e0b', icon: '👥' },
   ];
 
-  // Eventos activos as DataTable
-  const eventosFlat = (data.eventos_activos || []).map(ev => ({
-    ...ev,
-    _nombre: ev.nombre || '—',
-    _gurus: ev.gurus_vendidos ?? '—',
-    _apuestas: ev.apuestas ?? '—',
-    _pozo_cr: Number(ev.acumulado_actual || 0),
+  // Eventos activos como tabla — ev.apuestas y ev.recargas son objetos {total,monto}
+  const eventosActivos = Array.isArray(data.eventos_activos) ? data.eventos_activos : [];
+  const eventosFlat = eventosActivos.map(ev => ({
+    _nombre:   ev.nombre || '—',
+    _gurus:    ev.gurus_vendidos ?? ev.participantes_unicos ?? '—',
+    _apuestas: typeof ev.apuestas === 'object' ? (ev.apuestas?.total ?? 0) : (ev.apuestas ?? '—'),
+    _recargas: typeof ev.recargas === 'object' ? (ev.recargas?.total ?? 0) : (ev.recargas ?? '—'),
+    _pozo_cr:  Number(ev.pozo_actual ?? ev.acumulado_actual ?? 0),
+    _id:       ev.id,
   }));
 
   const eventosCols = [
-    { key: '_nombre', label: 'EVENTO', sortable: true },
-    { key: '_gurus', label: 'GURÚS', sortable: true },
-    { key: '_apuestas', label: 'APUESTAS', sortable: true },
+    { key: '_nombre',   label: 'EVENTO',    sortable: true },
+    { key: '_gurus',    label: 'GURÚS',     sortable: true },
+    { key: '_apuestas', label: 'APUESTAS',  sortable: true },
+    { key: '_recargas', label: 'RECARGAS',  sortable: true },
     {
       key: '_pozo_cr', label: 'POZO (CR)', sortable: true,
       render: (val) => (
@@ -563,20 +572,31 @@ function DashboardTab() {
 
       {data.top_usuarios?.length > 0 && (
         <div>
-          <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 12 }}>TOP USUARIOS</div>
+          <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 12 }}>TOP USUARIOS — ACIERTOS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {data.top_usuarios.map((u, i) => (
-              <div key={u.id || i} style={{ ...CARD, padding: '11px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ color: ['#f59e0b', '#c0cad8', '#f97316'][i] || '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 900, minWidth: 24 }}>#{i + 1}</div>
-                  <div>
-                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#fff' }}>{u.nombre_completo || u.nombre || u.email}</div>
-                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d' }}>{u.email}</div>
+            {data.top_usuarios.map((u, i) => {
+              // El backend devuelve { posicion, usuario:{id,nombre,email}, evento, aciertos, estado }
+              const usr    = u.usuario || u;
+              const nombre = usr.nombre_completo || usr.nombre || usr.email || '—';
+              const email  = usr.email || u.email || '';
+              const hits   = u.aciertos ?? u.predicciones ?? u.puntaje ?? '—';
+              const evento = typeof u.evento === 'string' ? u.evento : u.evento?.nombre ?? '';
+              return (
+                <div key={usr.id || u.id || i} style={{ ...CARD, padding: '11px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ color: ['#f59e0b', '#c0cad8', '#f97316'][i] || '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 900, minWidth: 24 }}>#{i + 1}</div>
+                    <div>
+                      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#fff' }}>{nombre}</div>
+                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d' }}>{email}{evento ? ` · ${evento}` : ''}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#8dc63f' }}>{hits}/10</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568' }}>aciertos</div>
                   </div>
                 </div>
-                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#8dc63f' }}>{u.predicciones ?? u.puntaje ?? '—'}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -676,9 +696,10 @@ function RecargasPromotorTab() {
       {resumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 20 }}>
           {[
-            { label: 'TOTAL RECARGAS', val: resumen.total_recargas ?? '—', color: '#00d4ff' },
-            { label: 'MONTO TOTAL (CR)', val: resumen.monto_total != null ? `${Number(resumen.monto_total).toLocaleString('es-CO')} cr` : '—', sub: resumen.monto_total != null ? `≈ $${Number(resumen.monto_total).toLocaleString('es-CO')} USD` : '', color: '#8dc63f' },
-            { label: 'COMISIONES (CR)', val: resumen.comisiones != null ? `${Number(resumen.comisiones).toLocaleString('es-CO')} cr` : '—', color: '#a78bfa' },
+            // Soporta tanto { total_recargas, monto_total } como { total, monto }
+            { label: 'TOTAL RECARGAS', val: resumen.total_recargas ?? resumen.total ?? '—', color: '#00d4ff' },
+            { label: 'MONTO TOTAL (CR)', val: (() => { const v = resumen.monto_total ?? resumen.monto ?? resumen.creditos; return v != null ? `${Number(v).toLocaleString('es-CO')} cr` : '—'; })(), sub: (() => { const v = resumen.monto_total ?? resumen.monto ?? resumen.creditos; return v != null ? `≈ $${Number(v).toLocaleString('es-CO')} USD` : ''; })(), color: '#8dc63f' },
+            { label: 'COMISIONES (CR)', val: (() => { const v = resumen.comisiones ?? resumen.comision_total ?? resumen.comision; return v != null ? `${Number(v).toLocaleString('es-CO')} cr` : '—'; })(), color: '#a78bfa' },
           ].map(s => (
             <div key={s.label} style={CARD}>
               <div style={{ color: s.color, fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 700, marginBottom: 2 }}>{s.val}</div>

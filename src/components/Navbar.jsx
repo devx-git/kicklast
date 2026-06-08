@@ -5,6 +5,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Predicciones' },
   { href: '/mundial', label: 'Mundial' },
   { href: '/en-vivo', label: 'En Vivo' },
+  { href: '/resultados', label: 'Resultados' },
   { href: '/fixture', label: 'Fixture' },
   { href: '/leaderboard', label: 'Ranking' },
   { href: '/champions', label: 'Champions' },

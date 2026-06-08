@@ -1,0 +1,527 @@
+/**
+ * PartidosResultadosTab
+ * Gestión de resultados de partidos para Promotor y Admin.
+ * - Lista eventos → selecciona uno → muestra sus partidos con resultados editables
+ * - Permite ingresar resultado_local y resultado_visitante (score)
+ * - Expande cada partido para ver y resolver preguntas Gurú (EventoPrediccion)
+ */
+import { useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
+
+const CARD  = { background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px' };
+const INPUT = { background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '8px 12px', color: '#e2e8f0', fontFamily: 'Roboto, sans-serif', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' };
+const LABEL = { display: 'block', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 5 };
+
+const ESTADO_COLOR = {
+  PROGRAMADO:  { color: '#6b7a8d', bg: '#ffffff10',             label: 'Programado' },
+  EN_CURSO:    { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: 'En curso'   },
+  FINALIZADO:  { color: '#8dc63f', bg: 'rgba(141,198,63,0.12)', label: 'Finalizado' },
+  SUSPENDIDO:  { color: '#f87171', bg: 'rgba(239,68,68,0.1)',   label: 'Suspendido' },
+  CANCELADO:   { color: '#f87171', bg: 'rgba(239,68,68,0.1)',   label: 'Cancelado'  },
+};
+
+function fmtFecha(f) {
+  if (!f) return '—';
+  return new Date(f).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Panel de preguntas Gurú de un partido ─────────────────────────────────────
+function PreguntasGuruPanel({ partido, onResuelto }) {
+  const [predicciones, setPredicciones] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [guardando, setGuardando]       = useState({});   // { [epId]: true }
+  const [msgs, setMsgs]                 = useState({});   // { [epId]: msg }
+  const [errs, setErrs]                 = useState({});   // { [epId]: err }
+  const [vals, setVals]                 = useState({});   // { [epId]: valor elegido }
+
+  const cargar = useCallback(() => {
+    setLoading(true);
+    api.get(`/partidos/${partido.id}/predicciones`)
+      .then(r => {
+        const preds = r.data?.predicciones || [];
+        setPredicciones(preds);
+        // Inicializar valores con valor_correcto actual si ya está resuelto
+        const initVals = {};
+        preds.forEach(ep => { if (ep.valor_correcto) initVals[ep.id] = ep.valor_correcto; });
+        setVals(initVals);
+      })
+      .catch(() => setPredicciones([]))
+      .finally(() => setLoading(false));
+  }, [partido.id]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const resolver = async (epId) => {
+    const valor = vals[epId];
+    if (!valor) return;
+    setGuardando(g => ({ ...g, [epId]: true }));
+    setMsgs(m  => ({ ...m, [epId]: '' }));
+    setErrs(e  => ({ ...e, [epId]: '' }));
+    try {
+      await api.patch(`/partidos/${partido.id}/predicciones/${epId}`, { valor });
+      setMsgs(m => ({ ...m, [epId]: '✓ Guardado' }));
+      // Actualizar localmente sin recargar todo
+      setPredicciones(prev => prev.map(ep =>
+        ep.id === epId ? { ...ep, valor_correcto: valor, estado: 'RESUELTO' } : ep
+      ));
+      onResuelto?.();
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErrs(e => ({ ...e, [epId]: Array.isArray(m) ? m.join(', ') : m || 'Error al guardar' }));
+    } finally {
+      setGuardando(g => ({ ...g, [epId]: false }));
+    }
+  };
+
+  if (loading) return (
+    <div style={{ padding: '14px 0 4px', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, textAlign: 'center' }}>
+      Cargando preguntas Gurú...
+    </div>
+  );
+
+  if (predicciones.length === 0) return (
+    <div style={{ padding: '14px 0 4px', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 12, textAlign: 'center' }}>
+      Este partido no tiene preguntas Gurú asociadas.
+    </div>
+  );
+
+  const resueltas  = predicciones.filter(ep => ep.estado === 'RESUELTO').length;
+  const pendientes = predicciones.length - resueltas;
+
+  return (
+    <div style={{ borderTop: '1px solid #1e2a3a', paddingTop: 14, marginTop: 10 }}>
+      {/* Header del panel */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em' }}>
+          PREGUNTAS GURÚ — {predicciones.length} total
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <span style={{ background: 'rgba(141,198,63,0.1)', color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 10, padding: '3px 10px', borderRadius: 4 }}>
+            ✓ {resueltas} resueltas
+          </span>
+          {pendientes > 0 && (
+            <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 10, padding: '3px 10px', borderRadius: 4 }}>
+              ⏳ {pendientes} pendientes
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Lista de preguntas */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {predicciones.map(ep => {
+          const resuelta  = ep.estado === 'RESUELTO';
+          const selVal    = vals[ep.id] || '';
+          const opciones  = ep.opciones?.map(o => o.valor) || [];
+          const guardandoThis = !!guardando[ep.id];
+
+          return (
+            <div key={ep.id} style={{
+              background: resuelta ? 'rgba(141,198,63,0.04)' : '#0a0d14',
+              border: `1px solid ${resuelta ? '#8dc63f30' : '#1e2a3a'}`,
+              borderRadius: 6,
+              padding: '12px 14px',
+            }}>
+              {/* Pregunta y badge estado */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 14 }}>{resuelta ? '✅' : '⏳'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#c0cad8', lineHeight: 1.4 }}>
+                    {ep.descripcion}
+                  </div>
+                  {resuelta && (
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f', marginTop: 4, letterSpacing: '0.05em' }}>
+                      RESPUESTA CORRECTA: {ep.valor_correcto}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Selector de respuesta */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {opciones.length > 0 ? (
+                  /* Opciones como botones */
+                  opciones.map(op => (
+                    <button
+                      key={op}
+                      type="button"
+                      onClick={() => setVals(v => ({ ...v, [ep.id]: op }))}
+                      style={{
+                        background: selVal === op
+                          ? (op === ep.valor_correcto ? '#8dc63f' : '#a78bfa')
+                          : '#1e2535',
+                        color: selVal === op ? '#0a0d14' : '#c0cad8',
+                        border: `1px solid ${selVal === op ? 'transparent' : '#1e2a3a'}`,
+                        fontFamily: 'Oswald, sans-serif',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: '7px 16px',
+                        borderRadius: 5,
+                        cursor: 'pointer',
+                        letterSpacing: '0.05em',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {op}
+                    </button>
+                  ))
+                ) : (
+                  /* Input libre si no hay opciones predefinidas */
+                  <input
+                    value={selVal}
+                    onChange={e => setVals(v => ({ ...v, [ep.id]: e.target.value }))}
+                    placeholder="Escribe el resultado correcto..."
+                    style={{ ...INPUT, maxWidth: 260 }}
+                  />
+                )}
+
+                {/* Botón guardar */}
+                <button
+                  onClick={() => resolver(ep.id)}
+                  disabled={!selVal || guardandoThis}
+                  style={{
+                    background: !selVal || guardandoThis ? '#1e2535' : '#8dc63f',
+                    color: !selVal || guardandoThis ? '#4a5568' : '#0a0d14',
+                    fontFamily: 'Oswald, sans-serif',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '7px 18px',
+                    borderRadius: 5,
+                    border: 'none',
+                    cursor: !selVal || guardandoThis ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {guardandoThis ? '...' : resuelta ? '↻ ACTUALIZAR' : 'CONFIRMAR'}
+                </button>
+              </div>
+
+              {msgs[ep.id] && <div style={{ color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 6 }}>{msgs[ep.id]}</div>}
+              {errs[ep.id] && <div style={{ color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 6 }}>{errs[ep.id]}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Fila de un partido ────────────────────────────────────────────────────────
+function PartidoRow({ partido, onSaved }) {
+  const [editando, setEditando]       = useState(false);
+  const [showGuru, setShowGuru]       = useState(false);
+  const [rl, setRl]                   = useState(partido.resultado_local      ?? '');
+  const [rv, setRv]                   = useState(partido.resultado_visitante  ?? '');
+  const [saving, setSaving]           = useState(false);
+  const [msg, setMsg]                 = useState('');
+  const [err, setErr]                 = useState('');
+
+  const estadoInfo    = ESTADO_COLOR[partido.estado] || ESTADO_COLOR.PROGRAMADO;
+  const tieneResultado = partido.resultado_local !== null && partido.resultado_local !== undefined;
+
+  const guardar = async () => {
+    if (rl === '' || rv === '') { setErr('Ingresa ambos resultados'); return; }
+    const rln = Number(rl), rvn = Number(rv);
+    if (isNaN(rln) || isNaN(rvn) || rln < 0 || rvn < 0) { setErr('Valores inválidos'); return; }
+    setSaving(true); setErr(''); setMsg('');
+    try {
+      await api.patch(`/partidos/${partido.id}`, { resultado_local: rln, resultado_visitante: rvn });
+      setMsg('✓ Marcador guardado');
+      setEditando(false);
+      onSaved?.();
+    } catch (e) {
+      const m = e.response?.data?.message;
+      setErr(Array.isArray(m) ? m.join(', ') : m || 'Error al guardar');
+    } finally { setSaving(false); }
+  };
+
+  const cancelar = () => {
+    setRl(partido.resultado_local    ?? '');
+    setRv(partido.resultado_visitante ?? '');
+    setEditando(false);
+    setErr(''); setMsg('');
+  };
+
+  return (
+    <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 18px', marginBottom: 8 }}>
+
+      {/* ── Cabecera del partido ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          {/* Badges */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ background: estadoInfo.bg, color: estadoInfo.color, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 3, letterSpacing: '0.06em' }}>
+              {estadoInfo.label.toUpperCase()}
+            </span>
+            {partido.api_id && (
+              <span style={{ background: '#3b82f615', color: '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 3 }}>
+                🔄 API
+              </span>
+            )}
+            {!partido.api_id && (
+              <span style={{ background: '#a78bfa15', color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 3 }}>
+                ✍ MANUAL
+              </span>
+            )}
+            {partido.fase && (
+              <span style={{ background: '#ffffff08', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10, padding: '2px 8px', borderRadius: 3 }}>
+                {partido.fase.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+
+          {/* Equipos y marcador */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#fff' }}>
+              {partido.equipo_local}
+            </span>
+            {tieneResultado ? (
+              <span style={{ background: '#1e2535', border: '1px solid #1e2a3a', borderRadius: 6, padding: '4px 14px', fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700, color: '#8dc63f' }}>
+                {partido.resultado_local} – {partido.resultado_visitante}
+              </span>
+            ) : (
+              <span style={{ color: '#4a5568', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>vs</span>
+            )}
+            <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#fff' }}>
+              {partido.equipo_visitante}
+            </span>
+          </div>
+
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginTop: 6 }}>
+            {fmtFecha(partido.fecha)}
+            {partido.sede ? ` · ${partido.sede}` : ''}
+          </div>
+          {msg && <div style={{ color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 4 }}>{msg}</div>}
+          {err && !editando && <div style={{ color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 4 }}>{err}</div>}
+        </div>
+
+        {/* Botones de acción */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {!editando && (
+            <button onClick={() => { setEditando(true); setMsg(''); setErr(''); }}
+              style={{ background: '#1e2535', color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 14px', borderRadius: 6, border: '1px solid #00d4ff25', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+              {tieneResultado ? '✏ MARCADOR' : '+ MARCADOR'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowGuru(s => !s)}
+            style={{
+              background: showGuru ? '#1e3a2a' : '#1e2535',
+              color: showGuru ? '#a78bfa' : '#a78bfa',
+              border: `1px solid ${showGuru ? '#a78bfa40' : '#a78bfa20'}`,
+              fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+              padding: '8px 14px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em',
+            }}>
+            {showGuru ? '▲ GURÚS' : '▼ GURÚS'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Formulario de marcador inline ───────────────────────────── */}
+      {editando && (
+        <div style={{ borderTop: '1px solid #1e2a3a', paddingTop: 14, marginTop: 12 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 12 }}>
+            MARCADOR FINAL (GOLES)
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 100 }}>
+              <label style={LABEL}>{partido.equipo_local}</label>
+              <input type="number" min="0" max="99" value={rl} onChange={e => setRl(e.target.value)} style={INPUT} placeholder="0" />
+            </div>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, color: '#4a5568', paddingBottom: 6 }}>–</div>
+            <div style={{ flex: 1, minWidth: 100 }}>
+              <label style={LABEL}>{partido.equipo_visitante}</label>
+              <input type="number" min="0" max="99" value={rv} onChange={e => setRv(e.target.value)} style={INPUT} placeholder="0" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, paddingBottom: 2 }}>
+              <button onClick={guardar} disabled={saving}
+                style={{ background: saving ? '#1e2535' : '#8dc63f', color: saving ? '#4a5568' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 18px', borderRadius: 6, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+                {saving ? 'GUARDANDO...' : 'GUARDAR'}
+              </button>
+              <button onClick={cancelar}
+                style={{ background: 'transparent', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, padding: '9px 14px', borderRadius: 6, border: '1px solid #1e2a3a', cursor: 'pointer' }}>
+                CANCELAR
+              </button>
+            </div>
+          </div>
+          {err && <div style={{ color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      )}
+
+      {/* ── Panel de preguntas Gurú expandible ──────────────────────── */}
+      {showGuru && (
+        <PreguntasGuruPanel
+          partido={partido}
+          onResuelto={onSaved}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+export default function PartidosResultadosTab({ isAdmin = false }) {
+  const [eventos, setEventos]           = useState([]);
+  const [eventoId, setEventoId]         = useState('');
+  const [partidos, setPartidos]         = useState([]);
+  const [loadingEv, setLoadingEv]       = useState(true);
+  const [loadingPt, setLoadingPt]       = useState(false);
+  const [syncMsg, setSyncMsg]           = useState('');
+  const [syncing, setSyncing]           = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('TODOS');
+
+  const cargarEventos = useCallback(() => {
+    setLoadingEv(true);
+    const ep = isAdmin ? '/eventos' : '/eventos/disponibles';
+    api.get(ep)
+      .then(r => { const data = r.data?.eventos || r.data || []; setEventos(Array.isArray(data) ? data : []); })
+      .catch(() => {})
+      .finally(() => setLoadingEv(false));
+  }, [isAdmin]);
+
+  useEffect(() => { cargarEventos(); }, [cargarEventos]);
+
+  const cargarPartidos = useCallback((id) => {
+    if (!id) return;
+    setLoadingPt(true);
+    api.get(`/eventos/${id}`)
+      .then(r => setPartidos(r.data?.partidos || []))
+      .catch(() => setPartidos([]))
+      .finally(() => setLoadingPt(false));
+  }, []);
+
+  useEffect(() => {
+    if (eventoId) cargarPartidos(eventoId);
+    else setPartidos([]);
+  }, [eventoId, cargarPartidos]);
+
+  const sincronizarApi = async () => {
+    if (!eventoId) return;
+    setSyncing(true); setSyncMsg('');
+    try {
+      const conApiId = partidos.filter(p => p.api_id);
+      if (conApiId.length === 0) { setSyncMsg('⚠ Ningún partido tiene api_id configurado.'); return; }
+      await api.post('/sports/sync-partidos', { evento_id: eventoId });
+      setSyncMsg(`✓ Sincronizados ${conApiId.length} partidos con la API`);
+      cargarPartidos(eventoId);
+    } catch (e) {
+      const m = e.response?.data?.message;
+      setSyncMsg('⚠ ' + (m || 'Error al sincronizar'));
+    } finally { setSyncing(false); }
+  };
+
+  const partidosFiltrados = partidos.filter(p =>
+    filtroEstado === 'TODOS' || p.estado === filtroEstado
+  );
+
+  const resumen = {
+    total:  partidos.length,
+    conRes: partidos.filter(p => p.resultado_local !== null && p.resultado_local !== undefined).length,
+    sinRes: partidos.filter(p => p.resultado_local === null  || p.resultado_local === undefined).length,
+    conApi: partidos.filter(p => p.api_id).length,
+  };
+
+  return (
+    <div>
+      {/* Selector de evento */}
+      <div style={{ ...CARD, marginBottom: 20 }}>
+        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.1em', marginBottom: 14 }}>
+          SELECCIONAR EVENTO
+        </div>
+        {loadingEv ? (
+          <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Cargando eventos...</div>
+        ) : (
+          <select value={eventoId} onChange={e => { setEventoId(e.target.value); setSyncMsg(''); }} style={{ ...INPUT, maxWidth: 500 }}>
+            <option value="">— Selecciona un evento —</option>
+            {eventos.map(ev => (
+              <option key={ev.id} value={ev.id}>{ev.nombre} {ev.estado ? `[${ev.estado}]` : ''}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Panel de partidos */}
+      {eventoId && (
+        <div style={CARD}>
+          {/* Header con resumen y acciones */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+            <div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.1em', marginBottom: 8 }}>
+                RESULTADOS DE PARTIDOS
+              </div>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Total',         val: resumen.total,  color: '#6b7a8d' },
+                  { label: 'Con marcador',  val: resumen.conRes, color: '#8dc63f' },
+                  { label: 'Sin marcador',  val: resumen.sinRes, color: '#f59e0b' },
+                  { label: 'Vía API',       val: resumen.conApi, color: '#3b82f6' },
+                ].map(s => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700, color: s.color }}>{s.val}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button onClick={sincronizarApi} disabled={syncing || resumen.conApi === 0}
+                style={{ background: syncing ? '#1e2535' : '#3b82f620', color: syncing ? '#4a5568' : '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #3b82f630', cursor: syncing ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+                {syncing ? '↻ SINCRONIZANDO...' : '🔄 SYNC API'}
+              </button>
+              <button onClick={() => cargarPartidos(eventoId)}
+                style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #8dc63f25', cursor: 'pointer', letterSpacing: '0.04em' }}>
+                ↻ ACTUALIZAR
+              </button>
+            </div>
+          </div>
+
+          {syncMsg && (
+            <div style={{ background: syncMsg.startsWith('✓') ? 'rgba(141,198,63,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${syncMsg.startsWith('✓') ? '#8dc63f30' : '#f59e0b30'}`, borderRadius: 6, padding: '10px 14px', fontFamily: 'Roboto, sans-serif', fontSize: 13, color: syncMsg.startsWith('✓') ? '#8dc63f' : '#f59e0b', marginBottom: 14 }}>
+              {syncMsg}
+            </div>
+          )}
+
+          {/* Leyenda de la sección Gurú */}
+          <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid #a78bfa20', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#a78bfa', lineHeight: 1.5 }}>
+            💡 Haz clic en <strong>▼ GURÚS</strong> en cada partido para ver y marcar las respuestas correctas de cada pregunta.
+            Esto permite comparar con las predicciones de los usuarios y determinar aciertos.
+          </div>
+
+          {/* Filtro por estado */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['TODOS', 'PROGRAMADO', 'EN_CURSO', 'FINALIZADO'].map(e => (
+              <button key={e} onClick={() => setFiltroEstado(e)}
+                style={{ background: filtroEstado === e ? '#8dc63f' : '#1e2535', color: filtroEstado === e ? '#0a0d14' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer', letterSpacing: '0.05em' }}>
+                {e === 'TODOS' ? `TODOS (${partidos.length})` : e.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+
+          {/* Lista de partidos */}
+          {loadingPt ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1,2,3].map(i => <div key={i} style={{ background: '#0a0d14', borderRadius: 8, height: 72, opacity: 0.5 }} />)}
+            </div>
+          ) : partidosFiltrados.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 14 }}>
+              No hay partidos {filtroEstado !== 'TODOS' ? `con estado "${filtroEstado}"` : 'en este evento'}.
+            </div>
+          ) : (
+            <div>
+              {partidosFiltrados.map(p => (
+                <PartidoRow key={p.id} partido={p} onSaved={() => cargarPartidos(eventoId)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!eventoId && !loadingEv && (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 14 }}>
+          ⬆ Selecciona un evento para ver y gestionar los resultados de sus partidos.
+        </div>
+      )}
+    </div>
+  );
+}

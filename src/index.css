@@ -1,0 +1,256 @@
+@import "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #0a0d14;
+  color: #fff;
+  font-family: 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Auth pages */
+.lk-auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0d14;
+  padding: 24px;
+}
+
+.lk-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: #0f1420;
+  border: 1px solid #1e2a3a;
+  border-radius: 12px;
+  padding: 40px 36px;
+}
+
+.lk-auth-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.lk-auth-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.lk-auth-sub {
+  font-size: 14px;
+  color: #6b7a8d;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.lk-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lk-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8dc63f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lk-field input {
+  background: #161e2e;
+  border: 1px solid #1e2a3a;
+  border-radius: 6px;
+  padding: 11px 14px;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Roboto', sans-serif;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.lk-field input:focus {
+  border-color: #8dc63f;
+}
+
+.lk-field input::placeholder {
+  color: #3a4a5a;
+}
+
+.lk-auth-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #f87171;
+  font-size: 13px;
+}
+
+.lk-btn-submit {
+  background: #8dc63f;
+  color: #0a0d14;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 13px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 4px;
+}
+
+.lk-btn-submit:hover { opacity: 0.9; }
+.lk-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.lk-auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #6b7a8d;
+}
+
+.lk-auth-footer a {
+  color: #8dc63f;
+  text-decoration: none;
+  font-weight: 600;
+}
+.lk-auth-footer a:hover { text-decoration: underline; }
+
+/* Match card extras */
+.lk-match-no-odds {
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.lk-match-cta-btn {
+  display: block;
+  text-align: center;
+  background: #8dc63f;
+  color: #0a0d14;
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-decoration: none;
+  width: 100%;
+  transition: opacity 0.2s;
+}
+.lk-match-cta-btn:hover { opacity: 0.85; }
+
+/* Hamburger button */
+.lk-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: 1px solid #ffffff20;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 6px;
+  flex-shrink: 0;
+}
+.lk-hamburger span {
+  display: block;
+  height: 2px;
+  background: #fff;
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+@media (max-width: 900px) {
+  .lk-hamburger { display: flex; }
+}
+
+/* Mobile drawer */
+.lk-mobile-menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.lk-mobile-menu-inner {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(300px, 85vw);
+  background: #0f1420;
+  border-left: 1px solid #1e2a3a;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.lk-mobile-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #1e2a3a;
+}
+.lk-mobile-close {
+  background: none;
+  border: none;
+  color: #6b7a8d;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.lk-mobile-close:hover { color: #fff; }
+.lk-mobile-link {
+  display: block;
+  padding: 14px 16px;
+  color: #c0cad8;
+  text-decoration: none;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid #1e2a3a10;
+  transition: color 0.15s, background 0.15s;
+}
+.lk-mobile-link:hover {
+  color: #8dc63f;
+  background: #ffffff05;
+}
+.lk-mobile-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  margin-top: auto;
+  border-top: 1px solid #1e2a3a;
+}

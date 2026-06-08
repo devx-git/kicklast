@@ -26,10 +26,10 @@ function fechaCorta(iso) {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const FILTROS = [
-  { key: 'hoy',  label: 'HOY'           },
-  { key: 'ayer', label: 'AYER'          },
-  { key: '3d',   label: 'ÚLTIMOS 3 DÍAS' },
-  { key: '7d',   label: 'ÚLTIMOS 7 DÍAS' },
+  { key: 'hoy',  label: 'HOY',            dias: 0  },
+  { key: 'ayer', label: 'AYER',           dias: 1  },
+  { key: '7d',   label: 'ÚLTIMOS 7 DÍAS',  dias: 7  },
+  { key: '30d',  label: 'ÚLTIMOS 30 DÍAS', dias: 30 },
 ];
 
 const ESTADO_LABEL = { FT: 'FT', AET: 'Prórroga', PEN: 'Penaltis' };
@@ -211,8 +211,7 @@ export default function Resultados() {
   const filtrados = useMemo(() => {
     const ahora = new Date();
     if (filtro === 'hoy') {
-      const inicio = startOfDay(ahora);
-      return partidos.filter(p => new Date(p.fecha_iso) >= inicio);
+      return partidos.filter(p => new Date(p.fecha_iso) >= startOfDay(ahora));
     }
     if (filtro === 'ayer') {
       const inicioAyer = daysAgo(1);
@@ -222,8 +221,8 @@ export default function Resultados() {
         return d >= inicioAyer && d < inicioHoy;
       });
     }
-    if (filtro === '3d') return partidos.filter(p => new Date(p.fecha_iso) >= daysAgo(3));
-    return partidos; // 7d = todo
+    if (filtro === '7d')  return partidos.filter(p => new Date(p.fecha_iso) >= daysAgo(7));
+    return partidos; // 30d = todo
   }, [partidos, filtro]);
 
   // ── Agrupar por liga, ordenar por número de partidos desc ────────────────────
@@ -245,9 +244,9 @@ export default function Resultados() {
   // Fecha del rango para mostrar en el subtítulo
   const labelRango = () => {
     if (filtro === 'hoy')  return `Hoy · ${fechaHoy}`;
-    if (filtro === 'ayer') return `Ayer y hoy`;
-    if (filtro === '3d')   return `Últimos 3 días`;
-    return `Últimos 7 días`;
+    if (filtro === 'ayer') return `Ayer`;
+    if (filtro === '7d')   return `Últimos 7 días`;
+    return `Últimos 30 días`;
   };
 
   return (
@@ -315,11 +314,23 @@ export default function Resultados() {
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
             <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 14, color: '#6b7a8d', marginBottom: 8 }}>
-              No hay resultados para este período.
+              Sin partidos en este período para las ligas seleccionadas.
             </p>
-            <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#4a5568' }}>
-              Prueba con "ÚLTIMOS 3 DÍAS" o "ÚLTIMOS 7 DÍAS"
+            <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#4a5568', marginBottom: 20 }}>
+              {filtro !== '30d'
+                ? 'Prueba con "ÚLTIMOS 30 DÍAS" para ver resultados recientes.'
+                : 'Las ligas europeas están en receso. El Mundial 2026 arranca el 11 de junio.'}
             </p>
+            {filtro !== '30d' && (
+              <button onClick={() => setFiltro('30d')} style={{
+                background: '#8dc63f', color: '#0a0d14',
+                fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700,
+                border: 'none', borderRadius: 6, padding: '10px 24px',
+                cursor: 'pointer', letterSpacing: '0.07em',
+              }}>
+                VER ÚLTIMOS 30 DÍAS
+              </button>
+            )}
           </div>
         ) : (
           <>

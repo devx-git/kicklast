@@ -758,6 +758,245 @@ function SolicitarPinesTab() {
   );
 }
 
+// ── MIS PINES (inventario distribuidor) ───────────────────────────────────
+const ESTADO_PIN = {
+  DISPONIBLE: { label: 'DISPONIBLE', color: '#8dc63f',  bg: 'rgba(141,198,63,0.1)'  },
+  VENDIDO:    { label: 'VENDIDO',    color: '#f59e0b',  bg: 'rgba(245,158,11,0.1)'  },
+  USADO:      { label: 'CANJEADO',   color: '#00d4ff',  bg: 'rgba(0,212,255,0.1)'   },
+  EXPIRADO:   { label: 'EXPIRADO',   color: '#6b7a8d',  bg: 'rgba(107,122,141,0.1)' },
+  ANULADO:    { label: 'ANULADO',    color: '#f87171',  bg: 'rgba(248,113,113,0.1)' },
+};
+
+function MisPinesTab() {
+  const [data, setData]           = useState({ resumen: {}, pines: [] });
+  const [loading, setLoading]     = useState(true);
+  const [filtro, setFiltro]       = useState('TODOS');
+  const [verImg, setVerImg]       = useState(null);
+  const [vendiendo, setVendiendo] = useState(null);   // id del pin en proceso
+  const [formVenta, setFormVenta] = useState({});     // { [pinId]: { vendido_a, open } }
+  const [msg, setMsg]             = useState('');
+  const [err, setErr]             = useState('');
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get('/pines/distribuidor/mis-pines');
+      setData(r.data || { resumen: {}, pines: [] });
+    } catch { setData({ resumen: {}, pines: [] }); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const registrarVenta = async (pinId) => {
+    const f = formVenta[pinId] || {};
+    setVendiendo(pinId); setMsg(''); setErr('');
+    try {
+      const r = await api.post(`/pines/distribuidor/vender/${pinId}`, { vendido_a: f.vendido_a || undefined });
+      setMsg(`✓ Venta registrada — ${r.data.codigo}. Cuando el cliente lo active en la app quedará como CANJEADO.`);
+      setFormVenta(prev => ({ ...prev, [pinId]: { ...prev[pinId], open: false } }));
+      cargar();
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErr(Array.isArray(m) ? m.join(', ') : m || 'Error al registrar venta');
+    } finally { setVendiendo(null); }
+  };
+
+  const toggleForm = (id) => setFormVenta(prev => ({
+    ...prev,
+    [id]: { ...prev[id], open: !prev[id]?.open }
+  }));
+
+  const { resumen, pines = [] } = data;
+  const pinsFiltrados = filtro === 'TODOS' ? pines : pines.filter(p => p.estado === filtro);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>Cargando pines...</div>;
+
+  const stats = [
+    { key: 'TODOS',      label: 'TOTAL',      val: resumen.total      || 0, color: '#c0cad8' },
+    { key: 'DISPONIBLE', label: 'DISPONIBLES', val: resumen.disponible || 0, color: '#8dc63f' },
+    { key: 'VENDIDO',    label: 'VENDIDOS',    val: resumen.vendido    || 0, color: '#f59e0b' },
+    { key: 'USADO',      label: 'CANJEADOS',   val: resumen.usado      || 0, color: '#00d4ff' },
+    { key: 'EXPIRADO',   label: 'EXPIRADOS',   val: resumen.expirado   || 0, color: '#6b7a8d' },
+  ];
+
+  return (
+    <div>
+      {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
+      {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+
+      {/* Stats + filtros */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+        {stats.map(s => (
+          <button key={s.key} onClick={() => setFiltro(s.key)} style={{
+            background: filtro === s.key ? `${s.color}18` : '#0f1420',
+            border: `1.5px solid ${filtro === s.key ? s.color : '#1e2a3a'}`,
+            borderRadius: 8, padding: '12px 16px', cursor: 'pointer', textAlign: 'center', minWidth: 90,
+          }}>
+            <div style={{ color: s.color, fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}>{s.val}</div>
+            <div style={{ color: filtro === s.key ? s.color : '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginTop: 3, letterSpacing: '0.05em' }}>{s.label}</div>
+          </button>
+        ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          <button onClick={cargar} style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '8px 14px', borderRadius: 6, cursor: 'pointer' }}>↻ ACTUALIZAR</button>
+        </div>
+      </div>
+
+      {/* Lista de pines */}
+      {pinsFiltrados.length === 0 ? (
+        <div style={{ ...CARD, textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>📦</div>
+          <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+            {filtro === 'TODOS' ? 'No tienes pines asignados todavía. Solicítalos a tu promotor.' : `Sin pines en estado ${filtro}.`}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pinsFiltrados.map(pin => {
+            const est = ESTADO_PIN[pin.estado] || ESTADO_PIN.DISPONIBLE;
+            const fv  = formVenta[pin.id] || {};
+            const isVendiendo = vendiendo === pin.id;
+
+            return (
+              <div key={pin.id} style={{ ...CARD, border: `1px solid ${pin.estado === 'DISPONIBLE' ? '#1e2a3a' : `${est.color}30`}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+
+                  {/* Código */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ background: est.bg, border: `1px solid ${est.color}40`, borderRadius: 6, padding: '6px 12px' }}>
+                      <span style={{ fontFamily: 'Roboto Mono, monospace', fontSize: 14, fontWeight: 700, color: est.color, letterSpacing: 2 }}>
+                        {pin.codigo}
+                      </span>
+                    </div>
+                    {/* Copiar código */}
+                    <button onClick={() => { navigator.clipboard?.writeText(pin.codigo); }}
+                      title="Copiar código"
+                      style={{ background: 'transparent', border: '1px solid #1e2a3a', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 10, padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                      📋
+                    </button>
+                  </div>
+
+                  {/* Valor + estado */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700 }}>
+                        {Number(pin.creditos || 0).toLocaleString('es-CO')} cr
+                      </div>
+                      <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        {creditosAVidas(Number(pin.creditos || 0))} vidas
+                      </div>
+                    </div>
+                    <span style={{ background: est.bg, color: est.color, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 4, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                      {est.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Metadatos */}
+                <div style={{ display: 'flex', gap: 20, marginTop: 10, flexWrap: 'wrap' }}>
+                  {pin.asignado_en && (
+                    <div>
+                      <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>Asignado: </span>
+                      <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        {new Date(pin.asignado_en).toLocaleDateString('es-CO')}
+                      </span>
+                    </div>
+                  )}
+                  {pin.vendido_en && (
+                    <div>
+                      <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>Vendido: </span>
+                      <span style={{ color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        {new Date(pin.vendido_en).toLocaleDateString('es-CO')}
+                        {pin.vendido_a && <> → <strong style={{ color: '#c0cad8' }}>{pin.vendido_a}</strong></>}
+                      </span>
+                    </div>
+                  )}
+                  {pin.usado_en && (
+                    <div>
+                      <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>Canjeado: </span>
+                      <span style={{ color: '#00d4ff', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        {new Date(pin.usado_en).toLocaleDateString('es-CO')}
+                        {pin.usado_por && <> por <strong>{pin.usado_por.nombre || pin.usado_por.email}</strong></>}
+                      </span>
+                    </div>
+                  )}
+                  {pin.expira_en && pin.estado === 'DISPONIBLE' && (
+                    <div>
+                      <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>Expira: </span>
+                      <span style={{ color: new Date(pin.expira_en) < new Date() ? '#f87171' : '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                        {new Date(pin.expira_en).toLocaleDateString('es-CO')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Acción: registrar venta (solo DISPONIBLE) */}
+                {pin.estado === 'DISPONIBLE' && (
+                  <div style={{ marginTop: 12 }}>
+                    {!fv.open ? (
+                      <button onClick={() => toggleForm(pin.id)}
+                        style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '7px 16px', borderRadius: 6, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                        💰 REGISTRAR VENTA
+                      </button>
+                    ) : (
+                      <div style={{ background: '#0a0e1a', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '12px 14px' }}>
+                        <div style={{ color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 10 }}>REGISTRAR VENTA — {pin.codigo}</div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={LABEL}>NOMBRE O REFERENCIA DEL COMPRADOR (opcional)</label>
+                          <input
+                            type="text"
+                            value={fv.vendido_a || ''}
+                            onChange={e => setFormVenta(prev => ({ ...prev, [pin.id]: { ...prev[pin.id], vendido_a: e.target.value } }))}
+                            placeholder="Ej: Carlos Rodríguez / Tel: 3001234567..."
+                            style={INPUT}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => registrarVenta(pin.id)} disabled={isVendiendo}
+                            style={{ background: isVendiendo ? '#1e2535' : '#f59e0b', color: isVendiendo ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 18px', borderRadius: 6, border: 'none', cursor: isVendiendo ? 'not-allowed' : 'pointer' }}>
+                            {isVendiendo ? 'REGISTRANDO...' : '✓ CONFIRMAR VENTA'}
+                          </button>
+                          <button onClick={() => toggleForm(pin.id)}
+                            style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '8px 14px', borderRadius: 6, cursor: 'pointer' }}>
+                            CANCELAR
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ya vendido — estado visual */}
+                {pin.estado === 'VENDIDO' && (
+                  <div style={{ marginTop: 10, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 6, padding: '8px 12px', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f59e0b' }}>
+                    ⏳ Entregado al cliente — esperando que lo active en la app para quedar como CANJEADO
+                  </div>
+                )}
+
+                {/* Canjeado */}
+                {pin.estado === 'USADO' && (
+                  <div style={{ marginTop: 10, background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 6, padding: '8px 12px', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#00d4ff' }}>
+                    ✓ PIN canjeado exitosamente
+                    {pin.usado_por && <span> por <strong>{pin.usado_por.nombre_completo || pin.usado_por.nombre || pin.usado_por.email}</strong></span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal imagen (no aplica aquí pero lo dejamos por consistencia) */}
+      {verImg && (
+        <div onClick={() => setVerImg(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
+          <img src={verImg} alt="vista" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8 }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── CANJEAR PIN ────────────────────────────────────────────────────────────
 function CanjearPinTab() {
   const [codigo, setCodigo] = useState('');
@@ -877,6 +1116,7 @@ export default function PanelDistribuidor() {
           <TabBtn active={tab === 'recargar'}   onClick={() => setTab('recargar')}>RECARGAR USUARIO</TabBtn>
           <TabBtn active={tab === 'historial'}  onClick={() => setTab('historial')}>MIS RECARGAS</TabBtn>
           <TabBtn active={tab === 'comisiones'} onClick={() => setTab('comisiones')}>MIS COMISIONES</TabBtn>
+          <TabBtn active={tab === 'mispines'}   onClick={() => setTab('mispines')}>MIS PINES</TabBtn>
           <TabBtn active={tab === 'pines'}      onClick={() => setTab('pines')}>SOLICITAR PINES</TabBtn>
           <TabBtn active={tab === 'pin'}        onClick={() => setTab('pin')}>CANJEAR PIN</TabBtn>
         </div>
@@ -884,6 +1124,7 @@ export default function PanelDistribuidor() {
         {tab === 'recargar'   && <RecargarTab eventos={eventos} />}
         {tab === 'historial'  && <MisRecargasTab eventos={eventos} />}
         {tab === 'comisiones' && <MisComisionesTab perfil={perfil} />}
+        {tab === 'mispines'   && <MisPinesTab />}
         {tab === 'pines'      && <SolicitarPinesTab />}
         {tab === 'pin'        && <CanjearPinTab />}
       </div>

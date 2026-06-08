@@ -460,6 +460,228 @@ function MisComisionesTab({ perfil }) {
   );
 }
 
+// ── SOLICITAR PINES ────────────────────────────────────────────────────────
+const PAQUETES = [
+  { id: 'starter',      nombre: 'Starter',       cantidad: 10,  valor: 1, badge: null,          color: '#4a5568' },
+  { id: 'basico',       nombre: 'Básico',         cantidad: 25,  valor: 1, badge: null,          color: '#60a5fa' },
+  { id: 'estandar',     nombre: 'Estándar',       cantidad: 50,  valor: 1, badge: '⭐ POPULAR',   color: '#8dc63f' },
+  { id: 'premium',      nombre: 'Premium',        cantidad: 100, valor: 1, badge: null,          color: '#a78bfa' },
+  { id: 'full',         nombre: 'Full',           cantidad: 250, valor: 1, badge: '🔥 PRO',      color: '#f59e0b' },
+];
+
+const ESTADO_COLOR_DIST = {
+  PENDIENTE: { label: 'PENDIENTE',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  APROBADA:  { label: 'APROBADA',   color: '#8dc63f', bg: 'rgba(141,198,63,0.12)' },
+  RECHAZADA: { label: 'RECHAZADA',  color: '#f87171', bg: 'rgba(239,68,68,0.1)'   },
+};
+
+function SolicitarPinesTab() {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modo, setModo] = useState(null); // null | paquete | personalizado
+  const [paqueteSel, setPaqueteSel] = useState(null);
+  const [custom, setCustom] = useState({ cantidad: '', valor: '1' });
+  const [nota, setNota] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const cargar = () => {
+    api.get('/pines/distribuidor/mis-solicitudes')
+      .then(r => setSolicitudes(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { cargar(); }, []);
+
+  const enviar = async () => {
+    setErr(''); setMsg('');
+    let cantidad, valor;
+    if (modo === 'paquete' && paqueteSel) {
+      cantidad = paqueteSel.cantidad;
+      valor    = paqueteSel.valor;
+    } else if (modo === 'personalizado') {
+      cantidad = Number(custom.cantidad);
+      valor    = Number(custom.valor);
+      if (!cantidad || cantidad < 1 || !valor || valor < 1) {
+        setErr('Ingresa una cantidad y valor unitario válidos (mínimo 1).');
+        return;
+      }
+    } else { setErr('Selecciona un paquete o configura uno personalizado.'); return; }
+
+    setEnviando(true);
+    try {
+      await api.post('/pines/distribuidor/solicitar', {
+        paquete_id:     modo === 'paquete' ? paqueteSel.id : 'personalizado',
+        cantidad,
+        valor_unitario: valor,
+        notas:          nota || undefined,
+      });
+      setMsg(`✓ Solicitud enviada — ${cantidad} pines × $${valor} = $${cantidad * valor} USD. Tu promotor recibirá una notificación.`);
+      setModo(null); setPaqueteSel(null); setCustom({ cantidad: '', valor: '1' }); setNota('');
+      cargar();
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErr(Array.isArray(m) ? m.join(', ') : m || 'Error al enviar la solicitud');
+    } finally { setEnviando(false); }
+  };
+
+  const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE').length;
+
+  return (
+    <div>
+      {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
+      {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 4 }}>SOLICITAR PINES A MI PROMOTOR</div>
+          <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d', margin: 0 }}>
+            Elige un paquete predefinido o crea una solicitud personalizada. Tu promotor recibirá la solicitud y te asignará los pines.
+          </p>
+        </div>
+        {pendientes > 0 && (
+          <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+            <div style={{ color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 700 }}>{pendientes}</div>
+            <div style={{ color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>pendiente{pendientes > 1 ? 's' : ''}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Paquetes */}
+      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 12 }}>PAQUETES PREDEFINIDOS</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10, marginBottom: 16 }}>
+        {PAQUETES.map(p => {
+          const sel = modo === 'paquete' && paqueteSel?.id === p.id;
+          return (
+            <div key={p.id} onClick={() => { setModo('paquete'); setPaqueteSel(p); setErr(''); }}
+              style={{ background: sel ? `${p.color}18` : '#0f1420', border: `1.5px solid ${sel ? p.color : '#1e2a3a'}`, borderRadius: 10, padding: '16px 14px', cursor: 'pointer', position: 'relative', transition: 'all 0.15s' }}>
+              {p.badge && (
+                <span style={{ position: 'absolute', top: 8, right: 8, background: sel ? p.color : 'rgba(255,255,255,0.06)', color: sel ? '#0a0d14' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, letterSpacing: '0.05em' }}>
+                  {p.badge}
+                </span>
+              )}
+              <div style={{ color: p.color, fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>{p.cantidad}</div>
+              <div style={{ color: '#c0cad8', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{p.nombre}</div>
+              <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginBottom: 6 }}>pines × ${p.valor} c/u</div>
+              <div style={{ color: p.color, fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700 }}>${p.cantidad * p.valor} USD</div>
+            </div>
+          );
+        })}
+
+        {/* Personalizado */}
+        <div onClick={() => { setModo('personalizado'); setPaqueteSel(null); setErr(''); }}
+          style={{ background: modo === 'personalizado' ? 'rgba(167,139,250,0.08)' : '#0f1420', border: `1.5px solid ${modo === 'personalizado' ? '#a78bfa' : '#1e2a3a'}`, borderRadius: 10, padding: '16px 14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: 110 }}>
+          <div style={{ fontSize: 22, marginBottom: 6 }}>✏️</div>
+          <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700 }}>Personalizado</div>
+          <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginTop: 4 }}>Define cantidad y valor</div>
+        </div>
+      </div>
+
+      {/* Form personalizado */}
+      {modo === 'personalizado' && (
+        <div style={{ ...CARD, marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label style={LABEL}>CANTIDAD DE PINES</label>
+            <input type="number" min="1" value={custom.cantidad} onChange={e => setCustom(c => ({ ...c, cantidad: e.target.value }))}
+              placeholder="Ej: 50" style={INPUT} />
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label style={LABEL}>VALOR POR PIN (USD / créditos)</label>
+            <input type="number" min="1" value={custom.valor} onChange={e => setCustom(c => ({ ...c, valor: e.target.value }))}
+              placeholder="Ej: 1" style={INPUT} />
+          </div>
+          {custom.cantidad && custom.valor && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700 }}>${Number(custom.cantidad) * Number(custom.valor)} USD</div>
+                <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>total estimado</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Nota + botón */}
+      {modo && (
+        <div style={{ ...CARD, marginBottom: 24 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <label style={LABEL}>NOTA PARA TU PROMOTOR (opcional)</label>
+              <input type="text" value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: Para el evento del sábado..." style={INPUT} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2, gap: 8 }}>
+              <button onClick={() => { setModo(null); setPaqueteSel(null); setErr(''); }}
+                style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: '1px solid #1e2a3a', cursor: 'pointer' }}>
+                CANCELAR
+              </button>
+              <button onClick={enviar} disabled={enviando}
+                style={{ background: enviando ? '#1e2535' : '#a78bfa', color: enviando ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '10px 24px', borderRadius: 6, border: 'none', cursor: enviando ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                {enviando ? 'ENVIANDO...' : '📨 ENVIAR SOLICITUD'}
+              </button>
+            </div>
+          </div>
+          {/* Resumen selección */}
+          {modo === 'paquete' && paqueteSel && (
+            <div style={{ marginTop: 14, padding: '10px 14px', background: '#0a0d14', borderRadius: 6, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
+              Solicitando: <strong style={{ color: paqueteSel.color }}>{paqueteSel.cantidad} pines</strong> × ${paqueteSel.valor} = <strong style={{ color: paqueteSel.color }}>${paqueteSel.cantidad * paqueteSel.valor} USD</strong>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Historial */}
+      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 12 }}>MIS SOLICITUDES</div>
+      {loading ? (
+        <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, padding: '20px 0' }}>Cargando historial...</div>
+      ) : solicitudes.length === 0 ? (
+        <div style={{ ...CARD, textAlign: 'center', padding: '28px', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+          Aún no tienes solicitudes. ¡Elige un paquete arriba para comenzar!
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {solicitudes.map(s => {
+            const est = ESTADO_COLOR_DIST[s.estado] || ESTADO_COLOR_DIST.PENDIENTE;
+            const pkg = PAQUETES.find(p => p.id === s.paquete_id);
+            return (
+              <div key={s.id} style={{ ...CARD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                      {s.cantidad} pines {pkg ? `· ${pkg.nombre}` : '· Personalizado'}
+                    </span>
+                    <span style={{ background: est.bg, color: est.color, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, letterSpacing: '0.06em' }}>{est.label}</span>
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>
+                    ${Number(s.valor_unitario)} c/u · Total ${Number(s.valor_total)} USD · {new Date(s.created_at).toLocaleDateString('es-CO')}
+                  </div>
+                  {s.notas && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 3 }}>Nota: {s.notas}</div>}
+                  {s.notas_promotor && s.estado !== 'PENDIENTE' && (
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: s.estado === 'RECHAZADA' ? '#f87171' : '#6b7a8d', marginTop: 3 }}>
+                      Promotor: {s.notas_promotor}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700 }}>
+                    ${Number(s.valor_total)} USD
+                  </div>
+                  {s.revisado_en && (
+                    <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10 }}>
+                      Revisado {new Date(s.revisado_en).toLocaleDateString('es-CO')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── CANJEAR PIN ────────────────────────────────────────────────────────────
 function CanjearPinTab() {
   const [codigo, setCodigo] = useState('');
@@ -576,16 +798,18 @@ export default function PanelDistribuidor() {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          <TabBtn active={tab === 'recargar'} onClick={() => setTab('recargar')}>RECARGAR USUARIO</TabBtn>
-          <TabBtn active={tab === 'historial'} onClick={() => setTab('historial')}>MIS RECARGAS</TabBtn>
+          <TabBtn active={tab === 'recargar'}   onClick={() => setTab('recargar')}>RECARGAR USUARIO</TabBtn>
+          <TabBtn active={tab === 'historial'}  onClick={() => setTab('historial')}>MIS RECARGAS</TabBtn>
           <TabBtn active={tab === 'comisiones'} onClick={() => setTab('comisiones')}>MIS COMISIONES</TabBtn>
-          <TabBtn active={tab === 'pin'} onClick={() => setTab('pin')}>CANJEAR PIN</TabBtn>
+          <TabBtn active={tab === 'pines'}      onClick={() => setTab('pines')}>SOLICITAR PINES</TabBtn>
+          <TabBtn active={tab === 'pin'}        onClick={() => setTab('pin')}>CANJEAR PIN</TabBtn>
         </div>
 
-        {tab === 'recargar' && <RecargarTab eventos={eventos} />}
-        {tab === 'historial' && <MisRecargasTab eventos={eventos} />}
+        {tab === 'recargar'   && <RecargarTab eventos={eventos} />}
+        {tab === 'historial'  && <MisRecargasTab eventos={eventos} />}
         {tab === 'comisiones' && <MisComisionesTab perfil={perfil} />}
-        {tab === 'pin' && <CanjearPinTab />}
+        {tab === 'pines'      && <SolicitarPinesTab />}
+        {tab === 'pin'        && <CanjearPinTab />}
       </div>
     </div>
   );

@@ -304,10 +304,19 @@ function DistribuidoresTab() {
 }
 
 // ── PINES TAB ──────────────────────────────────────────────────────────────
+const PINES_PAQUETES_NOMBRES = { starter: 'Starter', basico: 'Básico', estandar: 'Estándar', premium: 'Premium', full: 'Full', personalizado: 'Personalizado' };
+
 function PinesTab() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [pines, setPines] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solicitudes de distribuidores
+  const [solDist, setSolDist]   = useState([]);
+  const [loadingDist, setLoadingDist] = useState(true);
+  const [actioning, setActioning] = useState(null);
+  const [msgDist, setMsgDist]   = useState('');
+  const [errDist, setErrDist]   = useState('');
+  const [subTab, setSubTab]     = useState('distribuidores'); // 'distribuidores' | 'mispines'
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ cantidad: '', valor_unitario: '', notas_promotor: '' });
   const [saving, setSaving] = useState(false);
@@ -331,7 +340,41 @@ function PinesTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const cargarDist = useCallback(async () => {
+    setLoadingDist(true);
+    try {
+      const r = await api.get('/pines/promotor/solicitudes-distribuidores');
+      const d = r.data;
+      setSolDist(Array.isArray(d) ? d : d?.solicitudes || d?.data || []);
+    } catch { setSolDist([]); }
+    finally { setLoadingDist(false); }
+  }, []);
+
+  useEffect(() => { cargar(); cargarDist(); }, [cargar, cargarDist]);
+
+  const aprobarDist = async (id) => {
+    setActioning(id); setErrDist(''); setMsgDist('');
+    try {
+      await api.post(`/pines/promotor/aprobar-distribuidor/${id}`);
+      setMsgDist('✓ Solicitud aprobada y pines asignados al distribuidor');
+      cargarDist(); cargar();
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErrDist(Array.isArray(m) ? m.join(', ') : m || 'Error al aprobar');
+    } finally { setActioning(null); }
+  };
+
+  const rechazarDist = async (id, motivo) => {
+    setActioning(id); setErrDist(''); setMsgDist('');
+    try {
+      await api.post(`/pines/promotor/rechazar-distribuidor/${id}`, { motivo });
+      setMsgDist('Solicitud rechazada');
+      cargarDist();
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErrDist(Array.isArray(m) ? m.join(', ') : m || 'Error al rechazar');
+    } finally { setActioning(null); }
+  };
 
   const solicitar = async e => {
     e.preventDefault();
@@ -416,79 +459,270 @@ function PinesTab() {
     { key: '_expira', label: 'EXPIRA', sortable: true },
   ];
 
+  const pendDist = solDist.filter(s => s.estado === 'PENDIENTE');
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em' }}>MIS PINES DE RECARGA</div>
-        <button onClick={() => setShowForm(s => !s)} style={{ background: showForm ? '#1e2535' : '#a78bfa', color: showForm ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 18px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
-          {showForm ? '✕ CANCELAR' : 'SOLICITAR PINES'}
-        </button>
-      </div>
-
-      {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
-      {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
-
-      {showForm && (
-        <div style={{ ...CARD, border: '1px solid #a78bfa30', marginBottom: 20 }}>
-          <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 16 }}>SOLICITUD DE LOTE DE PINES</div>
-          <form onSubmit={solicitar}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 14 }}>
-              <div>
-                <label style={LABEL}>CANTIDAD</label>
-                <input value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} required type="number" min="1" placeholder="Ej: 100" style={INPUT} />
-              </div>
-              <div>
-                <label style={LABEL}>VALOR UNITARIO (CRÉDITOS = USD)</label>
-                <input value={form.valor_unitario} onChange={e => setForm(f => ({ ...f, valor_unitario: e.target.value }))} required type="number" min="1" placeholder="Ej: 5" style={INPUT} />
-                {form.valor_unitario && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 4 }}>= {form.valor_unitario} cr = ${form.valor_unitario} USD = {creditosAVidas(form.valor_unitario)} vidas</div>}
-              </div>
-            </div>
-            {form.cantidad && form.valor_unitario && (
-              <div style={{ background: '#0a0e1a', border: '1px solid #a78bfa20', borderRadius: 6, padding: '10px 14px', marginBottom: 14 }}>
-                <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8' }}>Total: </span>
-                <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, color: '#f59e0b', fontWeight: 700 }}>
-                  {(Number(form.cantidad) * Number(form.valor_unitario)).toLocaleString('es-CO')} cr
-                </span>
-                <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}> ≈ ${(Number(form.cantidad) * Number(form.valor_unitario)).toLocaleString('es-CO')} USD</span>
-              </div>
-            )}
-            <div style={{ marginBottom: 14 }}>
-              <label style={LABEL}>NOTAS</label>
-              <input value={form.notas_promotor} onChange={e => setForm(f => ({ ...f, notas_promotor: e.target.value }))} placeholder="Para qué evento, zona de distribución..." style={INPUT} />
-            </div>
-            <button type="submit" disabled={saving} style={{ background: saving ? '#1e2535' : '#a78bfa', color: saving ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '11px 28px', borderRadius: 6, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'ENVIANDO...' : 'SOLICITAR LOTE'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 20 }}>
+      {/* Sub-tab bar */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2535', paddingBottom: 10, flexWrap: 'wrap' }}>
         {[
-          { label: 'PINES DISPONIBLES', val: pines.length, color: '#8dc63f' },
-          { label: 'SOLICITUDES', val: solicitudes.length, color: '#a78bfa' },
-        ].map(s => (
-          <div key={s.label} style={{ ...CARD, textAlign: 'center' }}>
-            <div style={{ color: s.color, fontFamily: 'Oswald, sans-serif', fontSize: 28, fontWeight: 700, marginBottom: 4 }}>{s.val}</div>
-            <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10, letterSpacing: '0.08em' }}>{s.label}</div>
-          </div>
+          { key: 'distribuidores', label: 'SOLICITUDES DE DISTRIBUIDORES', badge: pendDist.length, color: '#f59e0b' },
+          { key: 'mispines', label: 'MIS PINES', badge: null, color: '#8dc63f' },
+        ].map(t => (
+          <button key={t.key} onClick={() => setSubTab(t.key)} style={{
+            background: subTab === t.key ? '#1e2535' : 'transparent',
+            color: subTab === t.key ? t.color : '#6b7a8d',
+            border: subTab === t.key ? `1px solid ${t.color}40` : '1px solid transparent',
+            fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', padding: '7px 14px', borderRadius: 6, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 7,
+          }}>
+            {t.label}
+            {t.badge > 0 && (
+              <span style={{ background: '#f59e0b', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{t.badge}</span>
+            )}
+          </button>
         ))}
       </div>
 
-      {/* Solicitudes table */}
-      {solicitudes.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 10 }}>SOLICITUDES</div>
-          <DataTable columns={solCols} data={solFlat} pageSize={10} emptyMsg="Sin solicitudes" />
-        </div>
+      {/* ── SOLICITUDES DE DISTRIBUIDORES ── */}
+      {subTab === 'distribuidores' && (
+        <DistSolicitudesSection
+          solDist={solDist}
+          pendDist={pendDist}
+          loadingDist={loadingDist}
+          actioning={actioning}
+          msgDist={msgDist}
+          errDist={errDist}
+          onAprobar={aprobarDist}
+          onRechazar={rechazarDist}
+          onRefresh={cargarDist}
+        />
       )}
 
-      {/* Pines disponibles table */}
-      {pines.length > 0 && (
+      {/* ── MIS PINES ── */}
+      {subTab === 'mispines' && (
         <div>
-          <div style={{ color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 10 }}>PINES DISPONIBLES</div>
-          <DataTable columns={pinesCols} data={pinesFlat} pageSize={25} emptyMsg="Sin pines disponibles" exportCsv />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em' }}>MIS PINES DE RECARGA</div>
+            <button onClick={() => setShowForm(s => !s)} style={{ background: showForm ? '#1e2535' : '#a78bfa', color: showForm ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 18px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+              {showForm ? '✕ CANCELAR' : 'SOLICITAR PINES AL ADMIN'}
+            </button>
+          </div>
+
+          {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
+          {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+
+          {showForm && (
+            <div style={{ ...CARD, border: '1px solid #a78bfa30', marginBottom: 20 }}>
+              <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 16 }}>SOLICITUD DE LOTE DE PINES AL ADMINISTRADOR</div>
+              <form onSubmit={solicitar}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 14 }}>
+                  <div>
+                    <label style={LABEL}>CANTIDAD</label>
+                    <input value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} required type="number" min="1" placeholder="Ej: 100" style={INPUT} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>VALOR UNITARIO (CRÉDITOS = USD)</label>
+                    <input value={form.valor_unitario} onChange={e => setForm(f => ({ ...f, valor_unitario: e.target.value }))} required type="number" min="1" placeholder="Ej: 5" style={INPUT} />
+                    {form.valor_unitario && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 4 }}>= {form.valor_unitario} cr = ${form.valor_unitario} USD = {creditosAVidas(form.valor_unitario)} vidas</div>}
+                  </div>
+                </div>
+                {form.cantidad && form.valor_unitario && (
+                  <div style={{ background: '#0a0e1a', border: '1px solid #a78bfa20', borderRadius: 6, padding: '10px 14px', marginBottom: 14 }}>
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8' }}>Total: </span>
+                    <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, color: '#f59e0b', fontWeight: 700 }}>
+                      {(Number(form.cantidad) * Number(form.valor_unitario)).toLocaleString('es-CO')} cr
+                    </span>
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}> ≈ ${(Number(form.cantidad) * Number(form.valor_unitario)).toLocaleString('es-CO')} USD</span>
+                  </div>
+                )}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={LABEL}>NOTAS</label>
+                  <input value={form.notas_promotor} onChange={e => setForm(f => ({ ...f, notas_promotor: e.target.value }))} placeholder="Para qué evento, zona de distribución..." style={INPUT} />
+                </div>
+                <button type="submit" disabled={saving} style={{ background: saving ? '#1e2535' : '#a78bfa', color: saving ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '11px 28px', borderRadius: 6, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? 'ENVIANDO...' : 'SOLICITAR LOTE'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 20 }}>
+            {[
+              { label: 'PINES DISPONIBLES', val: pines.length, color: '#8dc63f' },
+              { label: 'SOLICITUDES', val: solicitudes.length, color: '#a78bfa' },
+            ].map(s => (
+              <div key={s.label} style={{ ...CARD, textAlign: 'center' }}>
+                <div style={{ color: s.color, fontFamily: 'Oswald, sans-serif', fontSize: 28, fontWeight: 700, marginBottom: 4 }}>{s.val}</div>
+                <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10, letterSpacing: '0.08em' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Solicitudes table */}
+          {solicitudes.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 10 }}>SOLICITUDES AL ADMIN</div>
+              <DataTable columns={solCols} data={solFlat} pageSize={10} emptyMsg="Sin solicitudes" />
+            </div>
+          )}
+
+          {/* Pines disponibles table */}
+          <div>
+            <div style={{ color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 10 }}>PINES DISPONIBLES ({pines.length})</div>
+            <DataTable columns={pinesCols} data={pinesFlat} pageSize={25} emptyMsg="Sin pines disponibles" exportCsv />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SOLICITUDES DE DISTRIBUIDORES SECTION ─────────────────────────────────
+function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msgDist, errDist, onAprobar, onRechazar, onRefresh }) {
+  const [motivoMap, setMotivoMap] = useState({});   // id -> string
+  const [confirmReject, setConfirmReject] = useState(null); // id o null
+  const ESTADO_COLOR_D = { PENDIENTE: '#f59e0b', APROBADA: '#8dc63f', RECHAZADA: '#f87171', CANCELADA: '#6b7a8d' };
+
+  if (loadingDist) return <div style={{ textAlign: 'center', padding: 40, color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>Cargando solicitudes...</div>;
+
+  return (
+    <div>
+      {/* Header + refresh */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 13, letterSpacing: '0.08em' }}>SOLICITUDES DE MIS DISTRIBUIDORES</div>
+          <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 3 }}>
+            {pendDist.length} pendiente{pendDist.length !== 1 ? 's' : ''} · {solDist.length} total
+          </div>
+        </div>
+        <button onClick={onRefresh} style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer' }}>
+          ↻ ACTUALIZAR
+        </button>
+      </div>
+
+      {msgDist && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msgDist}</div>}
+      {errDist && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{errDist}</div>}
+
+      {solDist.length === 0 ? (
+        <div style={{ ...CARD, textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>📭</div>
+          <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Ningún distribuidor ha solicitado pines aún</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {solDist.map(sol => {
+            const dist = sol.distribuidor || {};
+            const nombre = dist.nombre_completo || dist.nombre || dist.email || sol.distribuidor_id?.slice(0, 8) + '...';
+            const paquete = sol.paquete_id ? (PINES_PAQUETES_NOMBRES[sol.paquete_id] || sol.paquete_id) : 'Personalizado';
+            const total = Number(sol.valor_total || 0) || (Number(sol.cantidad || 0) * Number(sol.valor_unitario || 0));
+            const isPending = sol.estado === 'PENDIENTE';
+            const isActioning = actioning === sol.id;
+            const isRejecting = confirmReject === sol.id;
+
+            return (
+              <div key={sol.id} style={{ ...CARD, border: `1px solid ${isPending ? '#f59e0b30' : '#1e2535'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+                  {/* Info distribuidor */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1e2535', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700 }}>
+                        {nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ color: '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, fontWeight: 600 }}>{nombre}</div>
+                        <div style={{ color: '#6b7a8d', fontFamily: 'Roboto Mono, monospace', fontSize: 10 }}>{dist.email || '—'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Estado badge */}
+                  <Badge color={ESTADO_COLOR_D[sol.estado] || '#6b7a8d'}>{sol.estado || 'PENDIENTE'}</Badge>
+                </div>
+
+                {/* Detalles del paquete */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))', gap: 10, marginBottom: 12 }}>
+                  {[
+                    { label: 'PAQUETE', val: paquete, color: '#a78bfa' },
+                    { label: 'CANTIDAD', val: `${Number(sol.cantidad || 0)} pines`, color: '#c0cad8' },
+                    { label: 'VALOR UNIT.', val: `${Number(sol.valor_unitario || 0).toLocaleString('es-CO')} cr`, color: '#8dc63f' },
+                    { label: 'TOTAL', val: `${total.toLocaleString('es-CO')} cr`, color: '#f59e0b' },
+                  ].map(d => (
+                    <div key={d.label} style={{ background: '#0a0e1a', borderRadius: 6, padding: '8px 10px' }}>
+                      <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 9, letterSpacing: '0.08em', marginBottom: 3 }}>{d.label}</div>
+                      <div style={{ color: d.color, fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700 }}>{d.val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notas del distribuidor */}
+                {sol.notas && (
+                  <div style={{ background: '#0a0e1a', borderRadius: 6, padding: '8px 12px', marginBottom: 12, borderLeft: '2px solid #f59e0b50' }}>
+                    <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginBottom: 2 }}>NOTA DEL DISTRIBUIDOR</div>
+                    <div style={{ color: '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{sol.notas}</div>
+                  </div>
+                )}
+
+                {/* Fecha */}
+                <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginBottom: isPending ? 14 : 0 }}>
+                  Solicitado: {sol.created_at ? new Date(sol.created_at).toLocaleString('es-CO') : '—'}
+                  {sol.revisado_en && <span> · Revisado: {new Date(sol.revisado_en).toLocaleString('es-CO')}</span>}
+                </div>
+
+                {/* Nota del promotor si fue rechazada */}
+                {sol.notas_promotor && !isPending && (
+                  <div style={{ background: '#1a0a0a', borderRadius: 6, padding: '8px 12px', marginTop: 10, borderLeft: '2px solid #f8717150' }}>
+                    <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 10, marginBottom: 2 }}>MOTIVO</div>
+                    <div style={{ color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{sol.notas_promotor}</div>
+                  </div>
+                )}
+
+                {/* Acciones (solo si PENDIENTE) */}
+                {isPending && (
+                  <div>
+                    {isRejecting ? (
+                      <div style={{ background: '#1a0a0a', border: '1px solid #f8717130', borderRadius: 8, padding: '12px 14px' }}>
+                        <div style={{ color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.08em', marginBottom: 10 }}>MOTIVO DEL RECHAZO (opcional)</div>
+                        <textarea
+                          rows={2}
+                          value={motivoMap[sol.id] || ''}
+                          onChange={e => setMotivoMap(m => ({ ...m, [sol.id]: e.target.value }))}
+                          placeholder="Ej: No tienes suficiente stock, contacta tu promotor..."
+                          style={{ ...INPUT, width: '100%', resize: 'vertical', marginBottom: 10 }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button disabled={isActioning} onClick={() => { onRechazar(sol.id, motivoMap[sol.id] || ''); setConfirmReject(null); }}
+                            style={{ background: isActioning ? '#1e2535' : '#f87171', color: isActioning ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '8px 16px', borderRadius: 6, border: 'none', cursor: isActioning ? 'not-allowed' : 'pointer' }}>
+                            {isActioning ? 'RECHAZANDO...' : 'CONFIRMAR RECHAZO'}
+                          </button>
+                          <button onClick={() => setConfirmReject(null)}
+                            style={{ background: 'transparent', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, padding: '8px 14px', borderRadius: 6, border: '1px solid #2a3550', cursor: 'pointer' }}>
+                            CANCELAR
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button
+                          disabled={isActioning}
+                          onClick={() => onAprobar(sol.id)}
+                          style={{ background: isActioning ? '#1e2535' : '#8dc63f', color: isActioning ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 20px', borderRadius: 6, border: 'none', cursor: isActioning ? 'not-allowed' : 'pointer', flex: 1, minWidth: 120 }}>
+                          {isActioning ? '...' : '✓ APROBAR Y ASIGNAR'}
+                        </button>
+                        <button
+                          disabled={isActioning}
+                          onClick={() => setConfirmReject(sol.id)}
+                          style={{ background: 'transparent', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 20px', borderRadius: 6, border: '1px solid #f8717140', cursor: isActioning ? 'not-allowed' : 'pointer', flex: 1, minWidth: 100 }}>
+                          ✕ RECHAZAR
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

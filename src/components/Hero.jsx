@@ -114,10 +114,10 @@ export default function Hero({ stats = { vivos: 20007, enComa: 121, eliminados: 
             <p className="lk-sub lk-sub-anim">
               Siente la adrenalina de cada gol, anticipa cada resultado y conviértete en parte del juego mientras millones de aficionados viven la intensidad del Mundial 2026.
             </p>
-            <div className="lk-btns lk-btns-anim">
+            {/*<div className="lk-btns lk-btns-anim">
               <a href="/register" className="lk-btn-register-hero">Crear cuenta gratis</a>
               <a href="/login" className="lk-btn-login-hero">Acceder</a>
-            </div>
+            </div>*/}
             <div className="lk-proof lk-proof-anim">
               <div className="lk-proof-item">
                 <div className="lk-proof-dot live" />

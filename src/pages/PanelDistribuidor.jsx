@@ -4,6 +4,7 @@ import { dataService } from '../services/dataService';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
+import EditarPerfil from '../components/EditarPerfil';
 import { formatCreditos, creditosAVidas } from '../utils/currency';
 
 const INPUT = { width: '100%', background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 12px', color: '#e2e8f0', fontFamily: 'Roboto, sans-serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
@@ -1155,6 +1156,7 @@ export default function PanelDistribuidor() {
           <TabBtn active={tab === 'mispines'}   onClick={() => setTab('mispines')}>MIS PINES</TabBtn>
           <TabBtn active={tab === 'pines'}      onClick={() => setTab('pines')}>SOLICITAR PINES</TabBtn>
           <TabBtn active={tab === 'pin'}        onClick={() => setTab('pin')}>CANJEAR PIN</TabBtn>
+          <TabBtn active={tab === 'cuenta'}     onClick={() => setTab('cuenta')}>👤 MI CUENTA</TabBtn>
         </div>
 
         {tab === 'recargar'   && <RecargarTab eventos={eventos} />}
@@ -1163,6 +1165,7 @@ export default function PanelDistribuidor() {
         {tab === 'mispines'   && <MisPinesTab />}
         {tab === 'pines'      && <SolicitarPinesTab />}
         {tab === 'pin'        && <CanjearPinTab />}
+        {tab === 'cuenta'     && <EditarPerfil perfil={perfil} />}
       </div>
     </div>
   );

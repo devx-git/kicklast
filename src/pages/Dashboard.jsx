@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/authService';
 import { dataService } from '../services/dataService';
 import Navbar from '../components/Navbar';
+import { SeccionCambiarClave } from '../components/EditarPerfil';
 import { creditosAVidas, creditosAMonedaLocal } from '../utils/currency';
 
 const PAISES = [
@@ -310,6 +311,9 @@ export default function Dashboard() {
             </form>
           </div>
         )}
+
+        {/* Cambiar contraseña — siempre visible debajo del perfil */}
+        <SeccionCambiarClave />
 
         {/* Stats cards — 1 crédito = 1 USD = 1 vida */}
         {(() => {

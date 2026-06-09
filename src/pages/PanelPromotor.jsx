@@ -4,6 +4,7 @@ import api from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import PartidosResultadosTab from '../components/PartidosResultadosTab';
+import EditarPerfil from '../components/EditarPerfil';
 import { formatCreditos, creditosAVidas } from '../utils/currency';
 
 const CARD = { background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px' };
@@ -1106,6 +1107,7 @@ export default function PanelPromotor() {
           <TabBtn active={tab === 'ganadores'} onClick={() => setTab('ganadores')}>GANADORES</TabBtn>
           <TabBtn active={tab === 'recargas'} onClick={() => setTab('recargas')}>RECARGAS</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
+          <TabBtn active={tab === 'perfil'} onClick={() => setTab('perfil')}>👤 MI PERFIL</TabBtn>
         </div>
 
         {/* Tab content */}
@@ -1116,6 +1118,7 @@ export default function PanelPromotor() {
         {tab === 'recargas' && <RecargasPromotorTab />}
         {tab === 'eventos' && <EventosTab eventos={eventos} />}
         {tab === 'partidos' && <PartidosResultadosTab isAdmin={false} />}
+        {tab === 'perfil'   && <EditarPerfil perfil={perfil} />}
       </div>
     </div>
   );

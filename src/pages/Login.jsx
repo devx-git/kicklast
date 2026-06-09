@@ -41,6 +41,13 @@ export default function Login() {
             <input name="password" type="password" value={form.password} onChange={handle} required placeholder="••••••••" />
           </div>
           {error && <div className="lk-auth-error">{error}</div>}
+          <div style={{ textAlign: 'right', marginBottom: 8 }}>
+            <a href="/recuperar-clave" style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', textDecoration: 'none' }}
+              onMouseEnter={e => e.target.style.color = '#8dc63f'}
+              onMouseLeave={e => e.target.style.color = '#6b7a8d'}>
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
           <button type="submit" className="lk-btn-submit" disabled={loading}>
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>

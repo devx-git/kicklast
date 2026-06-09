@@ -44,6 +44,8 @@ import Contacto from './pages/Contacto';
 import PaginaPatrocinadores from './pages/PaginaPatrocinadores';
 import PagoRetorno          from './pages/PagoRetorno';
 import Resultados           from './pages/Resultados';
+import RecuperarClave       from './pages/RecuperarClave';
+import NuevaClave           from './pages/NuevaClave';
 import { dataService } from './services/dataService';
 
 /* ── Sección recarga en landing ─────────────────────────────────────────── */
@@ -186,8 +188,10 @@ export default function App() {
         <Route path="/juego-responsable" element={<JuegoResponsable />} />
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/patrocinadores" element={<PaginaPatrocinadores />} />
-        <Route path="/pago/retorno"   element={<PagoRetorno />} />
-        <Route path="/resultados"     element={<Resultados />} />
+        <Route path="/pago/retorno"     element={<PagoRetorno />} />
+        <Route path="/resultados"       element={<Resultados />} />
+        <Route path="/recuperar-clave"  element={<RecuperarClave />} />
+        <Route path="/nueva-clave"      element={<NuevaClave />} />
         {/* Aliases */}
         <Route path="/ranking" element={<Navigate to="/leaderboard" replace />} />
         <Route path="/jackpot" element={<Navigate to="/premio" replace />} />

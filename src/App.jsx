@@ -75,59 +75,131 @@ function Cargando() {
 }
 
 /* ── Sección recarga en landing ─────────────────────────────────────────── */
+/* ─── Paquetes de recarga — código conservado, listo para activar cuando
+       se firmen los contratos con las pasarelas de pago globales.
+       Para reactivar: descomentar PAQUETES_LANDING, quitar blur/overlay
+       en SeccionRecargaOnline y restaurar los links a /recargar.  ───────── */
 const PAQUETES_LANDING = [
-  { id: 'pack5',   cr: 5,   usd: 5,   cop: '~$20.500',  nombre: 'Starter',  color: '#8dc63f', popular: false },
-  { id: 'pack10',  cr: 10,  usd: 10,  cop: '~$41.000',  nombre: 'Básico',   color: '#8dc63f', popular: false },
-  { id: 'pack25',  cr: 25,  usd: 25,  cop: '~$102.500', nombre: 'Pro',      color: '#a78bfa', popular: true  },
-  { id: 'pack50',  cr: 50,  usd: 50,  cop: '~$205.000', nombre: 'Plus',     color: '#8dc63f', popular: false },
-  { id: 'pack100', cr: 100, usd: 100, cop: '~$410.000', nombre: 'Elite',    color: '#f59e0b', popular: false },
+  { id: 'pack5',   cr: 5,   usd: 5,   nombre: 'Starter', color: '#8dc63f', popular: false },
+  { id: 'pack10',  cr: 10,  usd: 10,  nombre: 'Básico',  color: '#8dc63f', popular: false },
+  { id: 'pack25',  cr: 25,  usd: 25,  nombre: 'Pro',     color: '#a78bfa', popular: true  },
+  { id: 'pack50',  cr: 50,  usd: 50,  nombre: 'Plus',    color: '#8dc63f', popular: false },
+  { id: 'pack100', cr: 100, usd: 100, nombre: 'Elite',   color: '#f59e0b', popular: false },
 ];
+
+const METODOS_PAGO = ['💳 Tarjeta', '₿ Cripto', '💚 Nequi', '🏦 PSE', '📲 Transferencia'];
+const REGIONES     = ['🌎 Latinoamérica', '🇪🇺 Europa', '🇺🇸 Norteamérica'];
+
 function SeccionRecargaOnline() {
   return (
-    <section style={{ background: 'linear-gradient(180deg,#0a0d14 0%,#0d1420 100%)', padding: '70px 20px', borderTop: '1px solid #1e2a3a' }}>
+    <section style={{
+      background: 'linear-gradient(180deg,#0a0d14 0%,#0d1420 100%)',
+      padding: '48px 20px',
+      borderTop: '1px solid #1e2a3a',
+    }}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ display: 'inline-block', background: 'rgba(141,198,63,0.1)', border: '1px solid rgba(141,198,63,0.3)', borderRadius: 20, padding: '4px 16px', fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 14 }}>
-            ⚡ RECARGA EN LÍNEA · COLOMBIA
+
+        {/* ── Header ── */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            display: 'inline-block',
+            background: 'rgba(167,139,250,0.1)',
+            border: '1px solid rgba(167,139,250,0.3)',
+            borderRadius: 20, padding: '4px 16px',
+            fontFamily: 'Oswald, sans-serif', fontSize: 11,
+            color: '#a78bfa', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 14,
+          }}>
+            🌍 RECARGA ONLINE GLOBAL
           </div>
-          <h2 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: 900, color: '#fff', margin: '0 0 12px', lineHeight: 1.1 }}>
-            RECARGA SIN SALIR DE CASA
+          <h2 style={{
+            fontFamily: 'Oswald, sans-serif', fontSize: 28, fontWeight: 900,
+            color: '#fff', margin: '0 0 8px', lineHeight: 1.1,
+          }}>
+            RECARGAS EN LÍNEA — PRÓXIMAMENTE
           </h2>
-          <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 14, color: '#6b7a8d', maxWidth: 520, margin: '0 auto' }}>
-            Paga con Nequi, PSE o tarjeta. Créditos al instante, sin esperas.
+          <p style={{
+            fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d',
+            maxWidth: 460, margin: '0 auto',
+          }}>
+            Pronto podrás recargar créditos desde cualquier país con tu método de pago favorito.
           </p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12, marginBottom: 32 }}>
-          {PAQUETES_LANDING.map(p => (
-            <a key={p.id} href="/recargar" style={{ textDecoration: 'none' }}>
-              <div style={{
+
+        {/* ── Cards de paquetes (fondo borroso) + overlay ── */}
+        <div style={{ position: 'relative' }}>
+
+          {/* Ghost cards — opacidad 15%, blur, sin interacción */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))',
+            gap: 12,
+            opacity: 0.15,
+            filter: 'blur(3px)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}>
+            {PAQUETES_LANDING.map(p => (
+              <div key={p.id} style={{
                 background: p.popular ? 'linear-gradient(145deg,#141026,#0f1620)' : '#0f1420',
                 border: `1px solid ${p.popular ? '#a78bfa40' : '#1e2a3a'}`,
                 borderRadius: 12, padding: '20px 16px', textAlign: 'center',
-                transition: 'transform 0.15s, border-color 0.15s', position: 'relative',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = p.color + '80'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = p.popular ? '#a78bfa40' : '#1e2a3a'; }}>
-                {p.popular && (
-                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#a78bfa', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 800, padding: '2px 10px', borderRadius: 20, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>⭐ POPULAR</div>
-                )}
+              }}>
                 <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 38, fontWeight: 900, color: p.color, lineHeight: 1, marginBottom: 2 }}>{p.cr}</div>
                 <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginBottom: 8 }}>créditos</div>
                 <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#fff' }}>${p.usd} USD</div>
-                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 2 }}>{p.cop} COP</div>
               </div>
-            </a>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <a href="/recargar" style={{ background: 'linear-gradient(135deg,#8dc63f,#6ea832)', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 900, padding: '14px 40px', borderRadius: 8, textDecoration: 'none', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(141,198,63,0.3)' }}>
-            🔒 RECARGAR AHORA
-          </a>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['🔒 SSL', '💚 Nequi', '🏦 PSE', '💳 Tarjeta', '⚡ Instantáneo'].map(b => (
-              <span key={b} style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#4a5568' }}>{b}</span>
             ))}
           </div>
+
+          {/* Overlay central */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              background: 'rgba(10,13,20,0.88)',
+              border: '1px solid rgba(167,139,250,0.25)',
+              borderRadius: 16,
+              padding: '22px 36px',
+              textAlign: 'center',
+              backdropFilter: 'blur(6px)',
+              boxShadow: '0 0 40px rgba(167,139,250,0.08)',
+              maxWidth: 420, width: '90%',
+            }}>
+              {/* Título */}
+              <div style={{
+                fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 900,
+                color: '#a78bfa', letterSpacing: '0.06em', marginBottom: 14,
+              }}>
+                ⏳ PRÓXIMAMENTE
+              </div>
+
+              {/* Métodos de pago */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+                {METODOS_PAGO.map(m => (
+                  <span key={m} style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid #1e2a3a',
+                    borderRadius: 20, padding: '3px 10px',
+                    fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#c0cad8',
+                  }}>{m}</span>
+                ))}
+              </div>
+
+              {/* Divisor */}
+              <div style={{ borderTop: '1px solid #1e2a3a', margin: '12px 0' }} />
+
+              {/* Regiones */}
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {REGIONES.map(r => (
+                  <span key={r} style={{
+                    fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568',
+                  }}>{r}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

@@ -1,8 +1,17 @@
 import axios from 'axios';
 
-// In dev: Vite proxies /api → https://api.devxsolutions.pro (avoids CORS)
-// In prod: set VITE_API_BASE to the real URL
+// In dev: Vite proxies /api y /uploads → https://api.devxsolutions.pro
+// In prod: set VITE_API_BASE to the real backend URL
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
+/**
+ * Base URL para imágenes subidas desde el admin.
+ * En dev: '' (las URLs /uploads/... las proxea Vite)
+ * En prod con VITE_API_BASE=https://api.devxsolutions.pro: 'https://api.devxsolutions.pro'
+ */
+export const UPLOADS_BASE = API_BASE.startsWith('http')
+  ? API_BASE.replace(/\/+$/, '')   // quita trailing slash si lo hay
+  : '';                             // relativo → Vite proxy en dev
 
 const api = axios.create({
   baseURL: API_BASE,

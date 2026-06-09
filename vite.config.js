@@ -19,6 +19,12 @@ export default defineConfig({
         secure: true,
         rewrite: path => path.replace(/^\/api/, ''),
       },
+      // Imágenes gestionadas desde el admin — proxy en desarrollo
+      '/uploads': {
+        target: 'https://api.devxsolutions.pro',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
 })

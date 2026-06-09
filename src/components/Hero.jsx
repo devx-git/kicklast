@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import api, { UPLOADS_BASE } from '../services/api';
 
 function LiveClock() {
   const [time, setTime] = useState('');
@@ -11,7 +12,8 @@ function LiveClock() {
   return <>{time}</>;
 }
 
-const slides = [
+// Imágenes de fallback — se muestran si la API no devuelve ninguna
+const SLIDES_DEFAULT = [
   { bg: '/img/11chica.png' },
   { bg: '/img/guerra1.png' },
   { bg: '/img/james2.jpg' },
@@ -58,9 +60,21 @@ function Countdown() {
 }
 
 export default function Hero({ stats = { vivos: 20007, enComa: 121, eliminados: 542, premioMax: '$200K' }, acumulado = '$200.000' }) {
+  const [slides, setSlides] = useState(SLIDES_DEFAULT);
   const [current, setCurrent] = useState(0);
   const [infoIdx, setInfoIdx] = useState(0);
   const [progress, setProgress] = useState(0);
+
+  // Carga imágenes del carrusel desde el admin — fallback a SLIDES_DEFAULT
+  useEffect(() => {
+    api.get('/admin/media?categoria=carrusel')
+      .then(({ data }) => {
+        if (data.archivos?.length > 0) {
+          setSlides(data.archivos.map(f => ({ bg: `${UPLOADS_BASE}${f.url}` })));
+        }
+      })
+      .catch(() => {}); // sin errores en consola si la API no responde
+  }, []);
   const progressRef = useRef(null);
   const startRef = useRef(Date.now());
   const SLIDE_DURATION = 5000;

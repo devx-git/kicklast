@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '../services/authService';
-import api from '../services/api';
+import api, { UPLOADS_BASE } from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import PartidosResultadosTab from '../components/PartidosResultadosTab';
@@ -545,6 +545,334 @@ function FinanzasTab() {
   return <DataTable columns={columns} data={flat} pageSize={25} emptyMsg="Sin movimientos financieros" exportCsv />;
 }
 
+// ─── MEDIA TAB ─────────────────────────────────────────────────────────────
+const CATEGORIAS_MEDIA = [
+  { id: 'carrusel',       label: '🖼 CARRUSEL',      desc: 'Fondos del hero animado en la landing' },
+  { id: 'patrocinadores', label: '🏷 PATROCINADORES', desc: 'Logos de los patrocinadores' },
+];
+
+function fmtBytes(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function MediaTab() {
+  const [catActiva, setCatActiva]   = useState('carrusel');
+  const [archivos,  setArchivos]    = useState([]);
+  const [cargando,  setCargando]    = useState(false);
+  const [subiendo,  setSubiendo]    = useState(false);
+  const [progreso,  setProgreso]    = useState(0);
+  const [msg,       setMsg]         = useState(null); // { tipo: 'ok'|'err', texto }
+  const [preview,   setPreview]     = useState(null); // { file, dataUrl }
+  const [confirmar, setConfirmar]   = useState(null); // archivo a eliminar
+  const fileRef = useRef();
+
+  const cargar = async (cat = catActiva) => {
+    setCargando(true);
+    try {
+      const { data } = await api.get(`/admin/media?categoria=${cat}`);
+      setArchivos(data.archivos || []);
+    } catch {
+      setMsg({ tipo: 'err', texto: 'Error al cargar imágenes' });
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => { cargar(catActiva); setPreview(null); setMsg(null); }, [catActiva]);
+
+  /* ── Selección de archivo ── */
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const MAX = 5 * 1024 * 1024;
+    if (file.size > MAX) { setMsg({ tipo: 'err', texto: 'El archivo supera los 5 MB' }); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview({ file, dataUrl: ev.target.result });
+    reader.readAsDataURL(file);
+    setMsg(null);
+  };
+
+  const cancelarPreview = () => { setPreview(null); if (fileRef.current) fileRef.current.value = ''; };
+
+  /* ── Upload ── */
+  const subir = async () => {
+    if (!preview?.file) return;
+    setSubiendo(true);
+    setProgreso(0);
+    const form = new FormData();
+    form.append('file', preview.file);
+    try {
+      await api.post(`/admin/media/upload?categoria=${catActiva}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => setProgreso(Math.round((e.loaded / e.total) * 100)),
+      });
+      setMsg({ tipo: 'ok', texto: '✓ Imagen subida correctamente' });
+      cancelarPreview();
+      await cargar();
+    } catch (err) {
+      setMsg({ tipo: 'err', texto: err.response?.data?.message || 'Error al subir la imagen' });
+    } finally {
+      setSubiendo(false);
+      setProgreso(0);
+    }
+  };
+
+  /* ── Eliminar (tras confirmar) ── */
+  const eliminar = async () => {
+    if (!confirmar) return;
+    try {
+      await api.delete(`/admin/media/${catActiva}/${confirmar.nombre}`);
+      setMsg({ tipo: 'ok', texto: `✓ "${confirmar.nombre}" eliminada` });
+      setConfirmar(null);
+      await cargar();
+    } catch (err) {
+      setMsg({ tipo: 'err', texto: err.response?.data?.message || 'Error al eliminar' });
+      setConfirmar(null);
+    }
+  };
+
+  const catInfo = CATEGORIAS_MEDIA.find(c => c.id === catActiva);
+
+  return (
+    <div>
+      {/* ── Sub-tabs de categoría ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {CATEGORIAS_MEDIA.map(c => (
+          <button key={c.id} onClick={() => setCatActiva(c.id)} style={{
+            background: catActiva === c.id ? '#a78bfa' : '#1e2535',
+            color:      catActiva === c.id ? '#0a0d14'  : '#6b7a8d',
+            fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+            padding: '8px 18px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            letterSpacing: '0.06em', transition: 'all 0.15s',
+          }}>{c.label}</button>
+        ))}
+      </div>
+
+      {/* Descripción */}
+      <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 20 }}>
+        {catInfo?.desc} · {archivos.length} imagen{archivos.length !== 1 ? 'es' : ''} cargada{archivos.length !== 1 ? 's' : ''}
+      </p>
+
+      {/* ── Mensaje de feedback ── */}
+      {msg && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 6, marginBottom: 16,
+          background: msg.tipo === 'ok' ? '#0f2818' : '#1a0a0a',
+          border: `1px solid ${msg.tipo === 'ok' ? '#8dc63f40' : '#f8717140'}`,
+          color: msg.tipo === 'ok' ? '#8dc63f' : '#f87171',
+          fontFamily: 'Roboto, sans-serif', fontSize: 13,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          {msg.texto}
+          <button onClick={() => setMsg(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+
+      {/* ── Zona de subida ── */}
+      <div style={{ ...CARD, marginBottom: 20 }}>
+        <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 16 }}>
+          SUBIR NUEVA IMAGEN
+        </div>
+
+        {!preview ? (
+          /* Drop zone */
+          <div
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#a78bfa'; }}
+            onDragLeave={e => { e.currentTarget.style.borderColor = '#1e2a3a'; }}
+            onDrop={e => {
+              e.preventDefault();
+              e.currentTarget.style.borderColor = '#1e2a3a';
+              const file = e.dataTransfer.files?.[0];
+              if (file) { const input = fileRef.current; if (input) { const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; onFileChange({ target: input }); } }
+            }}
+            style={{
+              border: '2px dashed #1e2a3a', borderRadius: 10, padding: '36px 20px',
+              textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s',
+            }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🖼</div>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#c0cad8', marginBottom: 6 }}>
+              Arrastra una imagen aquí o <span style={{ color: '#a78bfa' }}>haz clic para seleccionar</span>
+            </div>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>
+              JPG · PNG · GIF · WEBP · SVG · Máx. 5 MB
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} style={{ display: 'none' }} />
+          </div>
+        ) : (
+          /* Preview de imagen seleccionada */
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <img src={preview.dataUrl} alt="preview" style={{
+              width: 160, height: 110, objectFit: 'cover', borderRadius: 8,
+              border: '1px solid #a78bfa40', flexShrink: 0,
+            }} />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#c0cad8', marginBottom: 4, wordBreak: 'break-all' }}>
+                {preview.file.name}
+              </div>
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 16 }}>
+                {fmtBytes(preview.file.size)} · {preview.file.type}
+              </div>
+
+              {/* Barra de progreso */}
+              {subiendo && (
+                <div style={{ background: '#0a0d14', borderRadius: 4, height: 6, marginBottom: 12, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: '#a78bfa', width: `${progreso}%`, transition: 'width 0.2s', borderRadius: 4 }} />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={subir} disabled={subiendo} style={{
+                  background: subiendo ? '#1e2535' : '#a78bfa',
+                  color: subiendo ? '#6b7a8d' : '#0a0d14',
+                  fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700,
+                  padding: '10px 22px', borderRadius: 6, border: 'none',
+                  cursor: subiendo ? 'not-allowed' : 'pointer', letterSpacing: '0.06em',
+                }}>
+                  {subiendo ? `SUBIENDO ${progreso}%...` : '⬆ SUBIR IMAGEN'}
+                </button>
+                <button onClick={cancelarPreview} disabled={subiendo} style={{
+                  background: 'transparent', color: '#6b7a8d',
+                  fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700,
+                  padding: '10px 16px', borderRadius: 6, border: '1px solid #1e2a3a',
+                  cursor: 'pointer',
+                }}>CANCELAR</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Grid de imágenes actuales ── */}
+      <div style={CARD}>
+        <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 16 }}>
+          IMÁGENES ACTUALES
+        </div>
+
+        {cargando ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+            Cargando imágenes...
+          </div>
+        ) : archivos.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#4a5568' }}>
+              Sin imágenes. Sube la primera usando el formulario de arriba.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
+            {archivos.map(arch => (
+              <div key={arch.nombre} style={{
+                background: '#0a0d14', border: '1px solid #1e2a3a',
+                borderRadius: 8, overflow: 'hidden',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#a78bfa40'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2a3a'}>
+                {/* Imagen */}
+                <div style={{ height: 110, overflow: 'hidden', position: 'relative', background: '#0f1420' }}>
+                  <img
+                    src={`${UPLOADS_BASE}${arch.url}`}
+                    alt={arch.nombre}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+                {/* Info + botón */}
+                <div style={{ padding: '10px 12px' }}>
+                  <div style={{
+                    fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#c0cad8',
+                    marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }} title={arch.nombre}>{arch.nombre}</div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginBottom: 10 }}>
+                    {fmtBytes(arch.tamano)}
+                  </div>
+                  <button onClick={() => setConfirmar(arch)} style={{
+                    width: '100%', background: 'transparent',
+                    color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 10,
+                    fontWeight: 700, padding: '6px 0', borderRadius: 4,
+                    border: '1px solid #f8717130', cursor: 'pointer',
+                    letterSpacing: '0.06em', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8717115'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    🗑 ELIMINAR
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Modal de confirmación de borrado ── */}
+      {confirmar && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}
+        onClick={e => { if (e.target === e.currentTarget) setConfirmar(null); }}>
+          <div style={{
+            background: '#0d1520', border: '1px solid #f8717140',
+            borderRadius: 14, padding: '28px 32px', maxWidth: 420, width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 0 60px rgba(248,113,113,0.1)',
+          }}>
+            {/* Icono de advertencia */}
+            <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
+
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 900, color: '#f87171', marginBottom: 10 }}>
+              ¿ELIMINAR IMAGEN?
+            </div>
+
+            {/* Preview de la imagen a borrar */}
+            <div style={{ margin: '14px auto', width: 160, height: 100, borderRadius: 8, overflow: 'hidden', border: '1px solid #1e2a3a' }}>
+              <img
+                src={`${UPLOADS_BASE}${confirmar.url}`}
+                alt={confirmar.nombre}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            </div>
+
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8', marginBottom: 4, wordBreak: 'break-all' }}>
+              {confirmar.nombre}
+            </div>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 24 }}>
+              Esta acción no se puede deshacer.
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={() => setConfirmar(null)} style={{
+                background: '#1e2535', color: '#c0cad8',
+                fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700,
+                padding: '12px 28px', borderRadius: 8, border: '1px solid #1e2a3a',
+                cursor: 'pointer', letterSpacing: '0.06em',
+              }}>CANCELAR</button>
+              <button onClick={eliminar} style={{
+                background: 'linear-gradient(135deg,#f87171,#dc2626)',
+                color: '#fff', fontFamily: 'Oswald, sans-serif',
+                fontSize: 13, fontWeight: 700,
+                padding: '12px 28px', borderRadius: 8, border: 'none',
+                cursor: 'pointer', letterSpacing: '0.06em',
+                boxShadow: '0 4px 16px rgba(248,113,113,0.3)',
+              }}>
+                🗑 SÍ, ELIMINAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN ──────────────────────────────────────────────────────────────────
 export default function AdminPanel() {
   const [tab, setTab] = useState('overview');
@@ -589,6 +917,7 @@ export default function AdminPanel() {
           <TabBtn active={tab === 'eventos'} onClick={() => setTab('eventos')}>EVENTOS</TabBtn>
           <TabBtn active={tab === 'finanzas'} onClick={() => setTab('finanzas')}>FINANZAS</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
+          <TabBtn active={tab === 'medios'}   onClick={() => setTab('medios')}>🖼 MEDIOS</TabBtn>
         </div>
 
         {tab === 'overview'  && <OverviewTab />}
@@ -598,6 +927,7 @@ export default function AdminPanel() {
         {tab === 'eventos'   && <EventosAdminTab />}
         {tab === 'finanzas'  && <FinanzasTab />}
         {tab === 'partidos'  && <PartidosResultadosTab isAdmin={true} />}
+        {tab === 'medios'    && <MediaTab />}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import PartidosResultadosTab from '../components/PartidosResultadosTab';
 import EditarPerfil from '../components/EditarPerfil';
+import EventoPartidosManager from '../components/EventoPartidosManager';
 import { formatCreditos, creditosAVidas } from '../utils/currency';
 
 const CARD = { background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px' };
@@ -989,6 +990,8 @@ function RecargasPromotorTab() {
 
 // ── EVENTOS TAB ───────────────────────────────────────────────────────────
 function EventosTab({ eventos }) {
+  const [configEvento, setConfigEvento] = useState(null); // { id, nombre }
+
   const flat = eventos.map(ev => ({
     ...ev,
     _nombre: ev.nombre || '—',
@@ -1021,8 +1024,20 @@ function EventosTab({ eventos }) {
       render: (val) => <Badge color={ESTADO_COLOR[val] || '#6b7a8d'}>{val}</Badge>,
     },
     {
-      key: '_ver', label: '', noSearch: true,
-      render: (_, row) => <a href={`/eventos/${row.id}`} style={{ background: '#1e2535', color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textDecoration: 'none', border: '1px solid #00d4ff20' }}>VER</a>,
+      key: '_acciones', label: 'ACCIONES', noSearch: true,
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <a href={`/eventos/${row.id}`}
+            style={{ background: '#1e2535', color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textDecoration: 'none', border: '1px solid #00d4ff20' }}>
+            VER
+          </a>
+          <button
+            onClick={() => setConfigEvento({ id: row.id, nombre: row._nombre })}
+            style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #8dc63f25', cursor: 'pointer' }}>
+            ⚙ PARTIDOS
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -1033,6 +1048,15 @@ function EventosTab({ eventos }) {
         <a href="/promotor/crear-evento" style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 18px', borderRadius: 6, textDecoration: 'none' }}>+ CREAR EVENTO</a>
       </div>
       <DataTable columns={columns} data={flat} pageSize={10} emptyMsg="No hay eventos. ¡Crea el primero!" exportCsv />
+
+      {/* Modal de configuración de partidos */}
+      {configEvento && (
+        <EventoPartidosManager
+          eventoId={configEvento.id}
+          eventoNombre={configEvento.nombre}
+          onClose={() => setConfigEvento(null)}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import api, { UPLOADS_BASE } from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import PartidosResultadosTab from '../components/PartidosResultadosTab';
+import EventoPartidosManager from '../components/EventoPartidosManager';
 import { formatCreditos, creditosAVidas } from '../utils/currency';
 
 const CARD = { background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px' };
@@ -403,6 +404,7 @@ function EventosAdminTab() {
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState(null);
   const [msg, setMsg] = useState('');
+  const [configEvento, setConfigEvento] = useState(null); // { id, nombre }
 
   const cargar = useCallback(() => {
     setLoading(true);
@@ -473,6 +475,11 @@ function EventosAdminTab() {
       render: (_, row) => (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <a href={`/eventos/${row.id}`} style={{ background: '#1e2535', color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textDecoration: 'none', border: '1px solid #00d4ff20' }}>VER</a>
+          <button
+            onClick={() => setConfigEvento({ id: row.id, nombre: row._nombre })}
+            style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #8dc63f25', cursor: 'pointer' }}>
+            ⚙ PARTIDOS
+          </button>
           {!row.cerrado && row._estado !== 'LIQUIDADO' && (
             <button onClick={() => cerrar(row.id)} disabled={!!actioning} style={{ background: '#1e2535', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f59e0b30', cursor: 'pointer' }}>CERRAR</button>
           )}
@@ -491,6 +498,15 @@ function EventosAdminTab() {
       </div>
       <MsgBanner msg={msg} onClear={() => setMsg('')} />
       <DataTable columns={columns} data={flat} pageSize={10} emptyMsg="No hay eventos registrados" exportCsv />
+
+      {/* Modal configuración de partidos */}
+      {configEvento && (
+        <EventoPartidosManager
+          eventoId={configEvento.id}
+          eventoNombre={configEvento.nombre}
+          onClose={() => setConfigEvento(null)}
+        />
+      )}
     </div>
   );
 }

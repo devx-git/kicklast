@@ -1,52 +1,78 @@
 import './index.css';
 import './lk-styles.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import Matches from './components/Matches';
-import LiveScores from './components/LiveScores';
-import HowToPlay from './components/HowToPlay';
-import Sponsors from './components/Sponsors';
-import Footer from './components/Footer';
+
+// ── Componentes del landing — carga INMEDIATA (el usuario los ve al entrar) ──
+import Navbar      from './components/Navbar';
+import Hero        from './components/Hero';
+import Matches     from './components/Matches';
+import LiveScores  from './components/LiveScores';
+import HowToPlay   from './components/HowToPlay';
+import Sponsors    from './components/Sponsors';
+import Footer      from './components/Footer';
 import PromoterCTA from './components/PromoterCTA';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import NotFound from './pages/NotFound';
-import ComingSoon from './pages/ComingSoon';
-import Recargar from './pages/Recargar';
-import MisPredicciones from './pages/MisPredicciones';
-import Movimientos from './pages/Movimientos';
-import Retiros from './pages/Retiros';
-import Campeonatos from './pages/Campeonatos';
-import Premio from './pages/Premio';
-import EnVivo from './pages/EnVivo';
-import EventoDetalle from './pages/EventoDetalle';
-import MisApuestas from './pages/MisApuestas';
-import CanjearPin from './pages/CanjearPin';
-import Fixture from './pages/Fixture';
-import Leaderboard from './pages/Leaderboard';
-import Champions from './pages/Champions';
-import RegistroPromotor from './pages/RegistroPromotor';
-import PanelPromotor from './pages/PanelPromotor';
-import CrearEvento from './pages/CrearEvento';
-import PanelDistribuidor from './pages/PanelDistribuidor';
-import AdminPanel from './pages/AdminPanel';
-import Terminos from './pages/Terminos';
-import Privacidad from './pages/Privacidad';
-import DemoPenaltis from './pages/DemoPenaltis';
-import Patrocinador from './pages/Patrocinador';
-import Ayuda from './pages/Ayuda';
-import Reglamento from './pages/Reglamento';
-import JuegoResponsable from './pages/JuegoResponsable';
-import Contacto from './pages/Contacto';
-import PaginaPatrocinadores from './pages/PaginaPatrocinadores';
-import PagoRetorno          from './pages/PagoRetorno';
-import Resultados           from './pages/Resultados';
-import RecuperarClave       from './pages/RecuperarClave';
-import NuevaClave           from './pages/NuevaClave';
 import { dataService } from './services/dataService';
+
+// ── Páginas — carga DIFERIDA: el bundle se divide automáticamente ─────────────
+// Cada import() crea un chunk separado; solo se descarga cuando el usuario
+// navega a esa ruta por primera vez. Ahorro: ~550 KB en la carga inicial.
+const Login              = lazy(() => import('./pages/Login'));
+const Register           = lazy(() => import('./pages/Register'));
+const RecuperarClave     = lazy(() => import('./pages/RecuperarClave'));
+const NuevaClave         = lazy(() => import('./pages/NuevaClave'));
+const Dashboard          = lazy(() => import('./pages/Dashboard'));
+const MisPredicciones    = lazy(() => import('./pages/MisPredicciones'));
+const Movimientos        = lazy(() => import('./pages/Movimientos'));
+const Retiros            = lazy(() => import('./pages/Retiros'));
+const MisApuestas        = lazy(() => import('./pages/MisApuestas'));
+const CanjearPin         = lazy(() => import('./pages/CanjearPin'));
+const Recargar           = lazy(() => import('./pages/Recargar'));
+const PagoRetorno        = lazy(() => import('./pages/PagoRetorno'));
+const Resultados         = lazy(() => import('./pages/Resultados'));
+const Campeonatos        = lazy(() => import('./pages/Campeonatos'));
+const Premio             = lazy(() => import('./pages/Premio'));
+const EnVivo             = lazy(() => import('./pages/EnVivo'));
+const EventoDetalle      = lazy(() => import('./pages/EventoDetalle'));
+const Fixture            = lazy(() => import('./pages/Fixture'));
+const Leaderboard        = lazy(() => import('./pages/Leaderboard'));
+const Champions          = lazy(() => import('./pages/Champions'));
+const RegistroPromotor   = lazy(() => import('./pages/RegistroPromotor'));
+const PanelPromotor      = lazy(() => import('./pages/PanelPromotor'));
+const CrearEvento        = lazy(() => import('./pages/CrearEvento'));
+const PanelDistribuidor  = lazy(() => import('./pages/PanelDistribuidor'));
+const AdminPanel         = lazy(() => import('./pages/AdminPanel'));
+const Terminos           = lazy(() => import('./pages/Terminos'));
+const Privacidad         = lazy(() => import('./pages/Privacidad'));
+const DemoPenaltis       = lazy(() => import('./pages/DemoPenaltis'));
+const Patrocinador       = lazy(() => import('./pages/Patrocinador'));
+const Ayuda              = lazy(() => import('./pages/Ayuda'));
+const Reglamento         = lazy(() => import('./pages/Reglamento'));
+const JuegoResponsable   = lazy(() => import('./pages/JuegoResponsable'));
+const Contacto           = lazy(() => import('./pages/Contacto'));
+const PaginaPatrocinadores = lazy(() => import('./pages/PaginaPatrocinadores'));
+const ComingSoon         = lazy(() => import('./pages/ComingSoon'));
+const NotFound           = lazy(() => import('./pages/NotFound'));
+
+// ── Fallback mientras carga un chunk diferido ─────────────────────────────────
+function Cargando() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', background: '#08090f', flexDirection: 'column', gap: 16,
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        border: '3px solid #1e2a3a', borderTopColor: '#8dc63f',
+        animation: 'spin 0.7s linear infinite',
+      }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#4a5568', letterSpacing: '0.1em' }}>
+        CARGANDO...
+      </span>
+    </div>
+  );
+}
 
 /* ── Sección recarga en landing ─────────────────────────────────────────── */
 const PAQUETES_LANDING = [
@@ -60,7 +86,6 @@ function SeccionRecargaOnline() {
   return (
     <section style={{ background: 'linear-gradient(180deg,#0a0d14 0%,#0d1420 100%)', padding: '70px 20px', borderTop: '1px solid #1e2a3a' }}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ display: 'inline-block', background: 'rgba(141,198,63,0.1)', border: '1px solid rgba(141,198,63,0.3)', borderRadius: 20, padding: '4px 16px', fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 14 }}>
             ⚡ RECARGA EN LÍNEA · COLOMBIA
@@ -72,8 +97,6 @@ function SeccionRecargaOnline() {
             Paga con Nequi, PSE o tarjeta. Créditos al instante, sin esperas.
           </p>
         </div>
-
-        {/* Cards paquetes */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12, marginBottom: 32 }}>
           {PAQUETES_LANDING.map(p => (
             <a key={p.id} href="/recargar" style={{ textDecoration: 'none' }}>
@@ -81,8 +104,7 @@ function SeccionRecargaOnline() {
                 background: p.popular ? 'linear-gradient(145deg,#141026,#0f1620)' : '#0f1420',
                 border: `1px solid ${p.popular ? '#a78bfa40' : '#1e2a3a'}`,
                 borderRadius: 12, padding: '20px 16px', textAlign: 'center',
-                transition: 'transform 0.15s, border-color 0.15s',
-                position: 'relative',
+                transition: 'transform 0.15s, border-color 0.15s', position: 'relative',
               }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = p.color + '80'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = p.popular ? '#a78bfa40' : '#1e2a3a'; }}>
@@ -97,8 +119,6 @@ function SeccionRecargaOnline() {
             </a>
           ))}
         </div>
-
-        {/* CTA + trust badges */}
         <div style={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <a href="/recargar" style={{ background: 'linear-gradient(135deg,#8dc63f,#6ea832)', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 900, padding: '14px 40px', borderRadius: 8, textDecoration: 'none', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(141,198,63,0.3)' }}>
             🔒 RECARGAR AHORA
@@ -152,51 +172,66 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage acumulado={acumulado} stats={stats} />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/mundial" element={<Campeonatos />} />
-        <Route path="/en-vivo" element={<EnVivo />} />
-        <Route path="/crown" element={<ComingSoon />} />
-        <Route path="/premio" element={<Premio />} />
-        <Route path="/campeonatos" element={<Campeonatos />} />
-        <Route path="/eventos/:id" element={<EventoDetalle />} />
-        <Route path="/promociones" element={<ComingSoon />} />
-        <Route path="/recargar" element={<Recargar />} />
-        <Route path="/mis-predicciones" element={<MisPredicciones />} />
-        <Route path="/movimientos" element={<Movimientos />} />
-        <Route path="/retiros" element={<Retiros />} />
-        <Route path="/mis-apuestas" element={<MisApuestas />} />
-        <Route path="/canjear-pin" element={<CanjearPin />} />
-        <Route path="/fixture" element={<Fixture />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/champions" element={<Champions />} />
-        <Route path="/registro-promotor" element={<RegistroPromotor />} />
-        <Route path="/promotor" element={<PanelPromotor />} />
-        <Route path="/promotor/crear-evento" element={<CrearEvento />} />
-        <Route path="/distribuidor" element={<PanelDistribuidor />} />
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/terminos" element={<Terminos />} />
-        <Route path="/privacidad" element={<Privacidad />} />
-        <Route path="/demo-penaltis" element={<DemoPenaltis />} />
-        <Route path="/patrocinador" element={<Patrocinador />} />
-        <Route path="/ayuda" element={<Ayuda />} />
-        <Route path="/reglas" element={<Reglamento />} />
-        <Route path="/reglamento" element={<Reglamento />} />
-        <Route path="/juego-responsable" element={<JuegoResponsable />} />
-        <Route path="/contacto" element={<Contacto />} />
-        <Route path="/patrocinadores" element={<PaginaPatrocinadores />} />
-        <Route path="/pago/retorno"     element={<PagoRetorno />} />
-        <Route path="/resultados"       element={<Resultados />} />
-        <Route path="/recuperar-clave"  element={<RecuperarClave />} />
-        <Route path="/nueva-clave"      element={<NuevaClave />} />
-        {/* Aliases */}
-        <Route path="/ranking" element={<Navigate to="/leaderboard" replace />} />
-        <Route path="/jackpot" element={<Navigate to="/premio" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      {/* Suspense envuelve TODAS las rutas; muestra spinner mientras carga el chunk */}
+      <Suspense fallback={<Cargando />}>
+        <Routes>
+          {/* ── Landing — carga inmediata ── */}
+          <Route path="/" element={<HomePage acumulado={acumulado} stats={stats} />} />
+
+          {/* ── Auth ── */}
+          <Route path="/login"           element={<Login />} />
+          <Route path="/register"        element={<Register />} />
+          <Route path="/recuperar-clave" element={<RecuperarClave />} />
+          <Route path="/nueva-clave"     element={<NuevaClave />} />
+
+          {/* ── Usuario ── */}
+          <Route path="/dashboard"        element={<Dashboard />} />
+          <Route path="/mis-predicciones" element={<MisPredicciones />} />
+          <Route path="/movimientos"      element={<Movimientos />} />
+          <Route path="/retiros"          element={<Retiros />} />
+          <Route path="/mis-apuestas"     element={<MisApuestas />} />
+          <Route path="/canjear-pin"      element={<CanjearPin />} />
+          <Route path="/recargar"         element={<Recargar />} />
+          <Route path="/pago/retorno"     element={<PagoRetorno />} />
+
+          {/* ── Contenido deportivo ── */}
+          <Route path="/resultados"      element={<Resultados />} />
+          <Route path="/mundial"         element={<Campeonatos />} />
+          <Route path="/campeonatos"     element={<Campeonatos />} />
+          <Route path="/en-vivo"         element={<EnVivo />} />
+          <Route path="/eventos/:id"     element={<EventoDetalle />} />
+          <Route path="/fixture"         element={<Fixture />} />
+          <Route path="/leaderboard"     element={<Leaderboard />} />
+          <Route path="/champions"       element={<Champions />} />
+          <Route path="/premio"          element={<Premio />} />
+
+          {/* ── Paneles ── */}
+          <Route path="/registro-promotor"   element={<RegistroPromotor />} />
+          <Route path="/promotor"            element={<PanelPromotor />} />
+          <Route path="/promotor/crear-evento" element={<CrearEvento />} />
+          <Route path="/distribuidor"        element={<PanelDistribuidor />} />
+          <Route path="/admin"               element={<AdminPanel />} />
+
+          {/* ── Páginas estáticas ── */}
+          <Route path="/terminos"         element={<Terminos />} />
+          <Route path="/privacidad"       element={<Privacidad />} />
+          <Route path="/ayuda"            element={<Ayuda />} />
+          <Route path="/reglas"           element={<Reglamento />} />
+          <Route path="/reglamento"       element={<Reglamento />} />
+          <Route path="/juego-responsable" element={<JuegoResponsable />} />
+          <Route path="/contacto"         element={<Contacto />} />
+          <Route path="/patrocinadores"   element={<PaginaPatrocinadores />} />
+          <Route path="/patrocinador"     element={<Patrocinador />} />
+          <Route path="/demo-penaltis"    element={<DemoPenaltis />} />
+          <Route path="/crown"            element={<ComingSoon />} />
+          <Route path="/promociones"      element={<ComingSoon />} />
+
+          {/* ── Aliases y 404 ── */}
+          <Route path="/ranking"  element={<Navigate to="/leaderboard" replace />} />
+          <Route path="/jackpot"  element={<Navigate to="/premio" replace />} />
+          <Route path="*"         element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

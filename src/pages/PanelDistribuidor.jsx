@@ -1118,7 +1118,7 @@ export default function PanelDistribuidor() {
     </div>
   );
 
-  const saldoCr = Number(perfil?.saldo_disponible || 0);
+  const saldoCr = Number(perfil?.saldo_actual || 0);
 
   return (
     <div style={{ background: '#0a0d14', minHeight: '100vh' }}>
@@ -1137,7 +1137,7 @@ export default function PanelDistribuidor() {
             {[
               { label: 'SALDO (CRÉDITOS)', val: `${saldoCr.toLocaleString('es-CO')} cr`, sub: `= ${creditosAVidas(saldoCr)} vidas ≈ $${saldoCr.toLocaleString('es-CO')} USD`, color: '#8dc63f' },
               { label: 'TOTAL RECARGAS', val: perfil.total_recargas ?? '0', color: '#00d4ff' },
-              { label: 'COMISIÓN (CR)', val: `${Number(perfil.comision_total || 0).toLocaleString('es-CO')} cr`, sub: `≈ $${Number(perfil.comision_total || 0).toLocaleString('es-CO')} USD`, color: '#f59e0b' },
+              { label: 'COMISIÓN (CR)', val: `${Number(perfil.comisiones_ganadas || 0).toLocaleString('es-CO')} cr`, sub: `≈ $${Number(perfil.comisiones_ganadas || 0).toLocaleString('es-CO')} USD`, color: '#f59e0b' },
               { label: 'ESTADO', val: perfil.activo ? 'ACTIVO' : 'INACTIVO', color: perfil.activo ? '#8dc63f' : '#f87171' },
             ].map(s => (
               <div key={s.label} style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '16px' }}>

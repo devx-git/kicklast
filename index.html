@@ -2,12 +2,34 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO / Social -->
     <title>KICKLAST — Predicciones Deportivas</title>
+    <meta name="description" content="Predice resultados de fútbol, compite por el pozo acumulado y gana premios. La plataforma de predicciones deportivas más emocionante." />
+    <meta name="theme-color" content="#0a0d14" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Preconexión a Google Fonts (DNS+TCP por adelantado) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+    <!--
+      Fuentes en modo NO BLOQUEANTE:
+      - rel="preload" descarga el CSS de fuentes en paralelo sin bloquear el render
+      - onload cambia rel a "stylesheet" cuando ya está descargado
+      - <noscript> como fallback para JS desactivado
+    -->
+    <link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript>
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

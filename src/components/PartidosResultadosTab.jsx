@@ -217,6 +217,16 @@ function PartidoRow({ partido, onSaved }) {
   const [msg, setMsg]                 = useState('');
   const [err, setErr]                 = useState('');
 
+  // Panel para asignar api_id a partidos MANUAL
+  const [editApiId,   setEditApiId]   = useState(false);
+  const [apiIdVal,    setApiIdVal]    = useState(partido.api_id || '');
+  const [savingApiId, setSavingApiId] = useState(false);
+  const [msgApiId,    setMsgApiId]    = useState('');
+
+  // Motor automático desde DB
+  const [resolviendo, setResolviendo] = useState(false);
+  const [msgMotor,    setMsgMotor]    = useState('');
+
   const estadoInfo    = ESTADO_COLOR[partido.estado] || ESTADO_COLOR.PROGRAMADO;
   const tieneResultado = partido.resultado_local !== null && partido.resultado_local !== undefined;
 
@@ -242,6 +252,34 @@ function PartidoRow({ partido, onSaved }) {
     setEditando(false);
     setErr(''); setMsg('');
   };
+
+  // Guardar api_id para este partido
+  const guardarApiId = async () => {
+    if (!apiIdVal.trim()) return;
+    setSavingApiId(true); setMsgApiId('');
+    try {
+      await api.patch(`/partidos/${partido.id}`, { api_id: apiIdVal.trim() });
+      setMsgApiId('✓ API ID guardado — ahora usa SYNC API para sincronizar');
+      setEditApiId(false);
+      onSaved?.();
+    } catch (e) {
+      setMsgApiId('Error: ' + (e.response?.data?.message || 'No se pudo guardar'));
+    } finally { setSavingApiId(false); }
+  };
+
+  // Ejecutar motor desde DB (para partidos MANUAL con resultado ya ingresado)
+  const resolverConMotor = async () => {
+    setResolviendo(true); setMsgMotor('');
+    try {
+      const { data } = await api.post(`/motor/partido/${partido.id}/resolver`);
+      setMsgMotor('✓ Motor ejecutado — predicciones resueltas con los datos del DB');
+      onSaved?.();
+    } catch (e) {
+      setMsgMotor('Error: ' + (e.response?.data?.message || 'No se pudo ejecutar el motor'));
+    } finally { setResolviendo(false); }
+  };
+
+  const tieneResultadoYFinalizado = tieneResultado && partido.estado === 'FINALIZADO';
 
   return (
     <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 18px', marginBottom: 8 }}>
@@ -304,6 +342,23 @@ function PartidoRow({ partido, onSaved }) {
               {tieneResultado ? '✏ MARCADOR' : '+ MARCADOR'}
             </button>
           )}
+
+          {/* Botón asignar API ID — solo para partidos sin api_id */}
+          {!partido.api_id && !editApiId && (
+            <button onClick={() => setEditApiId(true)}
+              style={{ background: '#1e2535', color: '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 14px', borderRadius: 6, border: '1px solid #3b82f620', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+              🔗 ASIGNAR API ID
+            </button>
+          )}
+
+          {/* Botón auto-resolver motor — solo para FINALIZADO con resultado */}
+          {tieneResultadoYFinalizado && (
+            <button onClick={resolverConMotor} disabled={resolviendo}
+              style={{ background: resolviendo ? '#1e2535' : '#1e3020', color: resolviendo ? '#4a5568' : '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 14px', borderRadius: 6, border: '1px solid #8dc63f20', cursor: resolviendo ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+              {resolviendo ? '⚙ EJECUTANDO...' : '⚙ AUTO-RESOLVER'}
+            </button>
+          )}
+
           <button
             onClick={() => setShowGuru(s => !s)}
             style={{
@@ -317,6 +372,43 @@ function PartidoRow({ partido, onSaved }) {
           </button>
         </div>
       </div>
+
+      {/* ── Panel asignar API ID ─────────────────────────────────────── */}
+      {editApiId && (
+        <div style={{ borderTop: '1px solid #1e2a3a', paddingTop: 12, marginTop: 10, background: '#0a0f1a', padding: '12px 14px', borderRadius: 6, marginTop: 8 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#3b82f6', letterSpacing: '0.1em', marginBottom: 8 }}>
+            FIXTURE ID DE API-FOOTBALL
+          </div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 10 }}>
+            Busca el fixture en <a href="https://dashboard.api-football.com" target="_blank" rel="noreferrer" style={{ color: '#3b82f6' }}>api-football.com</a> y pega el ID numérico aquí.
+            Ejemplo: el partido Colombia vs Uruguay podría ser <code style={{ color: '#a78bfa' }}>1234567</code>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              value={apiIdVal}
+              onChange={e => setApiIdVal(e.target.value)}
+              placeholder="Ej: 1048395"
+              style={{ ...INPUT, width: 160, fontFamily: 'monospace' }}
+            />
+            <button onClick={guardarApiId} disabled={savingApiId || !apiIdVal.trim()}
+              style={{ background: savingApiId ? '#1e2535' : '#3b82f6', color: savingApiId ? '#4a5568' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: 'none', cursor: !apiIdVal.trim() || savingApiId ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+              {savingApiId ? 'GUARDANDO...' : 'GUARDAR'}
+            </button>
+            <button onClick={() => { setEditApiId(false); setMsgApiId(''); }}
+              style={{ background: 'transparent', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '9px 12px', borderRadius: 6, border: '1px solid #1e2a3a', cursor: 'pointer' }}>
+              CANCELAR
+            </button>
+          </div>
+          {msgApiId && <div style={{ color: msgApiId.startsWith('✓') ? '#8dc63f' : '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 8 }}>{msgApiId}</div>}
+        </div>
+      )}
+
+      {/* Mensaje motor */}
+      {msgMotor && (
+        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 6, color: msgMotor.startsWith('✓') ? '#8dc63f' : '#f87171' }}>
+          {msgMotor}
+        </div>
+      )}
 
       {/* ── Formulario de marcador inline ───────────────────────────── */}
       {editando && (
@@ -396,18 +488,17 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
     else setPartidos([]);
   }, [eventoId, cargarPartidos]);
 
-  const sincronizarApi = async () => {
+  const sincronizarApi = async (force = false) => {
     if (!eventoId) return;
     setSyncing(true); setSyncMsg('');
     try {
-      const conApiId = partidos.filter(p => p.api_id);
-      if (conApiId.length === 0) { setSyncMsg('⚠ Ningún partido tiene api_id configurado.'); return; }
-      await api.post('/sports/sync-partidos', { evento_id: eventoId });
-      setSyncMsg(`✓ Sincronizados ${conApiId.length} partidos con la API`);
+      const { data } = await api.post('/sports/sync-partidos', { evento_id: eventoId, force });
+      // Usar el mensaje descriptivo que devuelve el backend
+      setSyncMsg(data.mensaje || `✓ Sync completado — ${data.sincronizados ?? 0} partido(s) actualizados`);
       cargarPartidos(eventoId);
     } catch (e) {
       const m = e.response?.data?.message;
-      setSyncMsg('⚠ ' + (m || 'Error al sincronizar'));
+      setSyncMsg('⚠ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al sincronizar'));
     } finally { setSyncing(false); }
   };
 
@@ -465,9 +556,16 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button onClick={sincronizarApi} disabled={syncing || resumen.conApi === 0}
-                style={{ background: syncing ? '#1e2535' : '#3b82f620', color: syncing ? '#4a5568' : '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #3b82f630', cursor: syncing ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+              <button onClick={() => sincronizarApi(false)} disabled={syncing || resumen.conApi === 0}
+                style={{ background: syncing ? '#1e2535' : '#3b82f620', color: syncing ? '#4a5568' : '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #3b82f630', cursor: (syncing || resumen.conApi === 0) ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}
+                title="Sincroniza solo los partidos PROGRAMADO con api_id">
                 {syncing ? '↻ SINCRONIZANDO...' : '🔄 SYNC API'}
+              </button>
+              {/* Force sync: re-sincroniza incluso los FINALIZADO (corregir resultados manuales) */}
+              <button onClick={() => sincronizarApi(true)} disabled={syncing || resumen.conApi === 0}
+                style={{ background: syncing ? '#1e2535' : 'rgba(245,158,11,0.1)', color: syncing ? '#4a5568' : '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #f59e0b30', cursor: (syncing || resumen.conApi === 0) ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}
+                title="Force: re-sincroniza todos los partidos con api_id, incluyendo FINALIZADO">
+                {syncing ? '...' : '⚡ SYNC FORCE'}
               </button>
               <button onClick={() => cargarPartidos(eventoId)}
                 style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #8dc63f25', cursor: 'pointer', letterSpacing: '0.04em' }}>

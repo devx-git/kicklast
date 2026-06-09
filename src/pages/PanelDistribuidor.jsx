@@ -5,6 +5,7 @@ import api from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import EditarPerfil from '../components/EditarPerfil';
+import ComprobanteTicket from '../components/ComprobanteTicket';
 import { formatCreditos, creditosAVidas } from '../utils/currency';
 
 const INPUT = { width: '100%', background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 12px', color: '#e2e8f0', fontFamily: 'Roboto, sans-serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
@@ -126,19 +127,20 @@ function ModalConfirmar({ usuario, evento, form, onConfirmar, onCancelar, proces
 }
 
 // ── RECARGAR USUARIO ──────────────────────────────────────────────────────
-function RecargarTab({ eventos }) {
+function RecargarTab({ eventos, distribuidorNombre }) {
   const [buscarPor, setBuscarPor] = useState('email_usuario');
   const [buscarVal, setBuscarVal] = useState('');
   const [eventoId,  setEventoId]  = useState('');
   const [creditos,  setCreditos]  = useState('');
   const [notas,     setNotas]     = useState('');
 
-  const [buscando,   setBuscando]   = useState(false);
-  const [usuario,    setUsuario]    = useState(null);   // datos encontrados
-  const [modal,      setModal]      = useState(false);  // ¿mostrar confirmación?
-  const [procesando, setProcesando] = useState(false);
-  const [msg,        setMsg]        = useState('');
-  const [err,        setErr]        = useState('');
+  const [buscando,      setBuscando]      = useState(false);
+  const [usuario,       setUsuario]       = useState(null);
+  const [modal,         setModal]         = useState(false);
+  const [procesando,    setProcesando]    = useState(false);
+  const [msg,           setMsg]           = useState('');
+  const [err,           setErr]           = useState('');
+  const [comprobante,   setComprobante]   = useState(null); // datos para el ticket
 
   const eventoSeleccionado = eventos.find(e => e.id === eventoId);
 
@@ -186,8 +188,23 @@ function RecargarTab({ eventos }) {
       if (notas) payload.notas = notas;
 
       const { data } = await api.post('/distribuidores/recargar', payload);
-      setMsg(`✓ ${data.creditos_recargados ?? creditos} créditos (= ${creditosAVidas(data.creditos_recargados ?? creditos)} vidas) acreditados a ${data.usuario_destino ?? usuario.nombre}`);
-      // Reset
+      const credAcreditados = data.creditos_recargados ?? Number(creditos);
+      setMsg(`✓ ${credAcreditados} créditos (= ${creditosAVidas(credAcreditados)} vidas) acreditados a ${data.usuario_destino ?? usuario.nombre}`);
+
+      // Mostrar comprobante imprimible
+      setComprobante({
+        tipo:               'RECARGA',
+        recargaId:          data.recarga_id || '',
+        usuarioNombre:      data.usuario_destino || usuario.nombre,
+        usuarioEmail:       usuario.email || '',
+        eventoNombre:       data.evento || eventoSeleccionado?.nombre || '',
+        creditos:           credAcreditados,
+        comision:           data.comision_ganada,
+        distribuidorNombre: distribuidorNombre || 'Distribuidor',
+        fecha:              new Date(),
+      });
+
+      // Reset formulario
       setBuscarVal(''); setCreditos(''); setNotas('');
       setUsuario(null); setModal(false);
     } catch (ex) {
@@ -199,6 +216,11 @@ function RecargarTab({ eventos }) {
 
   return (
     <div>
+      {/* Comprobante imprimible post-recarga */}
+      {comprobante && (
+        <ComprobanteTicket datos={comprobante} onClose={() => setComprobante(null)} />
+      )}
+
       {/* Modal de confirmación */}
       {modal && usuario && (
         <ModalConfirmar
@@ -768,16 +790,17 @@ const ESTADO_PIN = {
   ANULADO:    { label: 'ANULADO',    color: '#f87171',  bg: 'rgba(248,113,113,0.1)' },
 };
 
-function MisPinesTab() {
-  const [data, setData]           = useState({ resumen: {}, pines: [] });
-  const [loading, setLoading]     = useState(true);
-  const [filtro, setFiltro]       = useState('TODOS');
-  const [filtroValor, setFiltroValor] = useState(0);  // 0 = todos los valores
-  const [verImg, setVerImg]       = useState(null);
-  const [vendiendo, setVendiendo] = useState(null);   // id del pin en proceso
-  const [formVenta, setFormVenta] = useState({});     // { [pinId]: { vendido_a, open } }
-  const [msg, setMsg]             = useState('');
-  const [err, setErr]             = useState('');
+function MisPinesTab({ distribuidorNombre }) {
+  const [data, setData]               = useState({ resumen: {}, pines: [] });
+  const [loading, setLoading]         = useState(true);
+  const [filtro, setFiltro]           = useState('TODOS');
+  const [filtroValor, setFiltroValor] = useState(0);
+  const [verImg, setVerImg]           = useState(null);
+  const [vendiendo, setVendiendo]     = useState(null);
+  const [formVenta, setFormVenta]     = useState({});
+  const [msg, setMsg]                 = useState('');
+  const [err, setErr]                 = useState('');
+  const [comprobante, setComprobante] = useState(null); // datos para el ticket
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -791,12 +814,24 @@ function MisPinesTab() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const registrarVenta = async (pinId) => {
-    const f = formVenta[pinId] || {};
+    const f   = formVenta[pinId] || {};
+    const pin = (data.pines || []).find(p => p.id === pinId);
     setVendiendo(pinId); setMsg(''); setErr('');
     try {
       const r = await api.post(`/pines/distribuidor/vender/${pinId}`, { vendido_a: f.vendido_a || undefined });
       setMsg(`✓ Venta registrada — ${r.data.codigo}. Cuando el cliente lo active en la app quedará como CANJEADO.`);
       setFormVenta(prev => ({ ...prev, [pinId]: { ...prev[pinId], open: false } }));
+
+      // Mostrar comprobante imprimible
+      setComprobante({
+        tipo:               'PIN',
+        codigo:             r.data.codigo || pin?.codigo || '—',
+        creditos:           Number(pin?.creditos || 0),
+        vendido_a:          f.vendido_a || '',
+        distribuidorNombre: distribuidorNombre || 'Distribuidor',
+        fecha:              r.data.vendido_en ? new Date(r.data.vendido_en) : new Date(),
+      });
+
       cargar();
     } catch (ex) {
       const m = ex.response?.data?.message;
@@ -830,6 +865,11 @@ function MisPinesTab() {
 
   return (
     <div>
+      {/* Comprobante imprimible post-venta */}
+      {comprobante && (
+        <ComprobanteTicket datos={comprobante} onClose={() => setComprobante(null)} />
+      )}
+
       {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
       {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
 
@@ -1159,10 +1199,10 @@ export default function PanelDistribuidor() {
           <TabBtn active={tab === 'cuenta'}     onClick={() => setTab('cuenta')}>👤 MI CUENTA</TabBtn>
         </div>
 
-        {tab === 'recargar'   && <RecargarTab eventos={eventos} />}
+        {tab === 'recargar'   && <RecargarTab eventos={eventos} distribuidorNombre={perfil?.nombre} />}
         {tab === 'historial'  && <MisRecargasTab eventos={eventos} />}
         {tab === 'comisiones' && <MisComisionesTab perfil={perfil} />}
-        {tab === 'mispines'   && <MisPinesTab />}
+        {tab === 'mispines'   && <MisPinesTab distribuidorNombre={perfil?.nombre} />}
         {tab === 'pines'      && <SolicitarPinesTab />}
         {tab === 'pin'        && <CanjearPinTab />}
         {tab === 'cuenta'     && <EditarPerfil perfil={perfil} />}

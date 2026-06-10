@@ -65,7 +65,7 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
     <>
       <nav className="lk-nav">
         <div className="lk-nav-brand">
-          <a href="/"><img src="/img/kicklast02.png" alt="Kick Last" className="lk-nav-logo-img" /></a>
+          <a href="/"><img loading="eager" decoding="async" src="/img/kicklast02.webp" alt="Kick Last" className="lk-nav-logo-img" /></a>
         </div>
 
         <div className="lk-nav-menu">
@@ -173,7 +173,7 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
         <div className="lk-mobile-menu" onClick={() => setMenuOpen(false)}>
           <div className="lk-mobile-menu-inner" onClick={e => e.stopPropagation()}>
             <div className="lk-mobile-menu-header">
-              <img src="/img/kicklast02.png" alt="Kick Last" style={{ height: 28 }} />
+              <img loading="eager" decoding="async" src="/img/kicklast02.webp" alt="Kick Last" style={{ height: 28 }} />
               <button className="lk-mobile-close" onClick={() => setMenuOpen(false)}>✕</button>
             </div>
             <div className="lk-jackpot" style={{ margin: '12px 16px', justifyContent: 'center' }}>

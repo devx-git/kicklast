@@ -14,10 +14,10 @@ function LiveClock() {
 
 // Imágenes de fallback — se muestran si la API no devuelve ninguna
 const SLIDES_DEFAULT = [
-  { bg: '/img/11chica.png' },
-  { bg: '/img/guerra1.png' },
-  { bg: '/img/james2.jpg' },
-  { bg: '/img/equ10.jpg' },
+  { bg: '/img/11chica.webp' },
+  { bg: '/img/guerra1.webp' },
+  { bg: '/img/james2.webp' },
+  { bg: '/img/equ10.webp' },
 ];
 
 const infoPanels = [

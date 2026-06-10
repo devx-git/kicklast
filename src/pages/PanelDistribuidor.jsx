@@ -666,7 +666,7 @@ function SolicitarPinesTab() {
             <label style={LABEL}>COMPROBANTE DE PAGO (imagen) <span style={{ color: '#f59e0b' }}>*</span></label>
             {comprobante ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0a0e1a', border: '1px solid #8dc63f40', borderRadius: 8, padding: '10px 14px' }}>
-                <img src={comprobante.dataUrl} alt="comprobante" onClick={() => setVerImg(comprobante.dataUrl)}
+                <img loading="lazy" decoding="async" src={comprobante.dataUrl} alt="comprobante" onClick={() => setVerImg(comprobante.dataUrl)}
                   style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: '1px solid #8dc63f30' }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 12, fontWeight: 600 }}>✓ {comprobante.nombre}</div>
@@ -714,7 +714,7 @@ function SolicitarPinesTab() {
       {verImg && (
         <div onClick={() => setVerImg(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' }}>
-          <img src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
+          <img loading="lazy" decoding="async" src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
           <div style={{ position: 'absolute', top: 20, right: 24, color: '#fff', fontSize: 28, cursor: 'pointer' }}>✕</div>
         </div>
       )}
@@ -767,7 +767,7 @@ function SolicitarPinesTab() {
                       </div>
                     )}
                     {s.comprobante_url && (
-                      <img src={s.comprobante_url} alt="comprobante" onClick={() => setVerImg(s.comprobante_url)}
+                      <img loading="lazy" decoding="async" src={s.comprobante_url} alt="comprobante" onClick={() => setVerImg(s.comprobante_url)}
                         style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 5, cursor: 'pointer', border: '1px solid #8dc63f40' }} title="Ver comprobante" />
                     )}
                   </div>
@@ -1067,7 +1067,7 @@ function MisPinesTab({ distribuidorNombre }) {
       {verImg && (
         <div onClick={() => setVerImg(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
-          <img src={verImg} alt="vista" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8 }} />
+          <img loading="lazy" decoding="async" src={verImg} alt="vista" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8 }} />
         </div>
       )}
     </div>

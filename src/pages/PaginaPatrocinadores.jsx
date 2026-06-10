@@ -3,10 +3,10 @@ import Navbar from '../components/Navbar';
 const G = '#8dc63f';
 
 const SPONSORS_ACTUALES = [
-  { img: '/img/logoims1.png',    nombre: 'Consorcio IMS',    tipo: 'Patrocinador Principal', desc: 'Líderes en gestión deportiva y desarrollo empresarial global. Más de 30 países y dos décadas conectando marcas con el deporte de alto impacto.', badge: '⭐ PRINCIPAL' },
-  { img: '/img/surebets11.png',  nombre: 'SureBets24/P',     tipo: 'Patrocinador',           desc: 'Plataforma líder en análisis de apuestas deportivas con presencia en más de 20 mercados internacionales.', badge: null },
-  { img: '/img/gosports1.png',   nombre: 'GO! Sports',       tipo: 'Patrocinador',           desc: 'Marketing deportivo de alto impacto conectando marcas con los eventos más importantes del mundo.', badge: null },
-  { img: '/img/logodevx1.png',   nombre: 'DeVx Studio',      tipo: 'Desarrollador oficial',  desc: 'Equipo técnico detrás de la arquitectura y desarrollo integral de la plataforma KickLast.', badge: null },
+  { img: '/img/logoims1.webp',    nombre: 'Consorcio IMS',    tipo: 'Patrocinador Principal', desc: 'Líderes en gestión deportiva y desarrollo empresarial global. Más de 30 países y dos décadas conectando marcas con el deporte de alto impacto.', badge: '⭐ PRINCIPAL' },
+  { img: '/img/surebets11.webp',  nombre: 'SureBets24/P',     tipo: 'Patrocinador',           desc: 'Plataforma líder en análisis de apuestas deportivas con presencia en más de 20 mercados internacionales.', badge: null },
+  { img: '/img/gosports1.webp',   nombre: 'GO! Sports',       tipo: 'Patrocinador',           desc: 'Marketing deportivo de alto impacto conectando marcas con los eventos más importantes del mundo.', badge: null },
+  { img: '/img/logodevx1.webp',   nombre: 'DeVx Studio',      tipo: 'Desarrollador oficial',  desc: 'Equipo técnico detrás de la arquitectura y desarrollo integral de la plataforma KickLast.', badge: null },
 ];
 
 const BENEFICIOS = [
@@ -59,7 +59,7 @@ export default function PaginaPatrocinadores() {
                 <span style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(141,198,63,0.15)', color: G, fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.08em' }}>{s.badge}</span>
               )}
               <div style={{ width: 72, height: 52, marginBottom: 16, display: 'flex', alignItems: 'center' }}>
-                <img src={s.img} alt={s.nombre} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} onError={e => e.target.style.display = 'none'} />
+                <img loading="lazy" decoding="async" src={s.img} alt={s.nombre} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} onError={e => e.target.style.display = 'none'} />
               </div>
               <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{s.nombre}</div>
               <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: G, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 10 }}>{s.tipo.toUpperCase()}</div>

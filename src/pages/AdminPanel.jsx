@@ -721,7 +721,7 @@ function MediaTab() {
         ) : (
           /* Preview de imagen seleccionada */
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <img src={preview.dataUrl} alt="preview" style={{
+            <img loading="lazy" decoding="async" src={preview.dataUrl} alt="preview" style={{
               width: 160, height: 110, objectFit: 'cover', borderRadius: 8,
               border: '1px solid #a78bfa40', flexShrink: 0,
             }} />
@@ -791,8 +791,7 @@ function MediaTab() {
               onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2a3a'}>
                 {/* Imagen */}
                 <div style={{ height: 110, overflow: 'hidden', position: 'relative', background: '#0f1420' }}>
-                  <img
-                    src={`${UPLOADS_BASE}${arch.url}`}
+                  <img loading="lazy" decoding="async"                     src={`${UPLOADS_BASE}${arch.url}`}
                     alt={arch.nombre}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={e => { e.target.style.display = 'none'; }}
@@ -849,8 +848,7 @@ function MediaTab() {
 
             {/* Preview de la imagen a borrar */}
             <div style={{ margin: '14px auto', width: 160, height: 100, borderRadius: 8, overflow: 'hidden', border: '1px solid #1e2a3a' }}>
-              <img
-                src={`${UPLOADS_BASE}${confirmar.url}`}
+              <img loading="lazy" decoding="async"                 src={`${UPLOADS_BASE}${confirmar.url}`}
                 alt={confirmar.nombre}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={e => { e.target.style.display = 'none'; }}

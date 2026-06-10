@@ -68,7 +68,7 @@ function FilaPartido({ p }) {
           {p.equipo_local}
         </span>
         {p.logo_local && (
-          <img src={p.logo_local} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
+          <img loading="lazy" decoding="async" src={p.logo_local} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
             onError={e => e.target.style.display = 'none'} />
         )}
       </div>
@@ -97,7 +97,7 @@ function FilaPartido({ p }) {
       {/* Visitante */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, paddingLeft: 8 }}>
         {p.logo_visitante && (
-          <img src={p.logo_visitante} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
+          <img loading="lazy" decoding="async" src={p.logo_visitante} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
             onError={e => e.target.style.display = 'none'} />
         )}
         <span style={{
@@ -147,7 +147,7 @@ function GrupoLiga({ liga, logo, pais, partidos }) {
         borderBottom: abierto ? '1px solid #1a2535' : 'none',
       }}>
         {logo && (
-          <img src={logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+          <img loading="lazy" decoding="async" src={logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
             onError={e => e.target.style.display = 'none'} />
         )}
         <span style={{

@@ -109,7 +109,7 @@ export default function RegistroPromotor() {
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <a href="/"><img src="/img/kicklast02.png" alt="Kick Last" style={{ height: 36, marginBottom: 20 }} /></a>
+          <a href="/"><img loading="eager" decoding="async" src="/img/kicklast02.webp" alt="Kick Last" style={{ height: 36, marginBottom: 20 }} /></a>
           <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.15em', marginBottom: 8 }}>ZONA DE PROMOTORES</div>
           <h1 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, color: '#fff', margin: 0 }}>Registrar mi empresa</h1>
           <p style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, marginTop: 8 }}>Crea tu cuenta de promotor para gestionar eventos y distribuidores</p>

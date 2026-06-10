@@ -19,7 +19,7 @@ export default function Sponsors() {
         <div className="sp-featured-card">
           <div className="sp-feat-left">
             <div className="sp-feat-logo-stage">
-              <img src="/img/logoims1.png" alt="Consorcio IMS" />
+              <img loading="lazy" decoding="async" src="/img/logoims1.webp" alt="Consorcio IMS" />
             </div>
             <div className="sp-feat-badge">
               <div className="sp-feat-badge-dot" />
@@ -55,12 +55,12 @@ export default function Sponsors() {
         <div className="sp-sec-scroll-wrap">
           <div className="sp-sec-grid">
             {[
-              { img: '/img/surebets11.png', name: 'SureBets24/P', type: 'Patrocinador', desc: 'Plataforma líder en análisis de apuestas deportivas con presencia en más de 20 mercados internacionales.' },
-              { img: '/img/gosports1.png', name: 'GO! Sports', type: 'Patrocinador', desc: 'Marketing deportivo de alto impacto conectando marcas con los eventos más importantes del mundo.' },
-              { img: '/img/logodevx1.png', name: 'DeVx Studio', type: 'Desarrollador oficial', desc: 'Equipo técnico detrás de la arquitectura y desarrollo integral de la plataforma KICK LAST.' },
+              { img: '/img/surebets11.webp', name: 'SureBets24/P', type: 'Patrocinador', desc: 'Plataforma líder en análisis de apuestas deportivas con presencia en más de 20 mercados internacionales.' },
+              { img: '/img/gosports1.webp', name: 'GO! Sports', type: 'Patrocinador', desc: 'Marketing deportivo de alto impacto conectando marcas con los eventos más importantes del mundo.' },
+              { img: '/img/logodevx1.webp', name: 'DeVx Studio', type: 'Desarrollador oficial', desc: 'Equipo técnico detrás de la arquitectura y desarrollo integral de la plataforma KICK LAST.' },
             ].map(s => (
               <div key={s.name} className="sp-sec-card">
-                <div className="sp-sec-logo-zone"><img src={s.img} alt={s.name} /></div>
+                <div className="sp-sec-logo-zone"><img loading="lazy" decoding="async" src={s.img} alt={s.name} /></div>
                 <div className="sp-sec-info">
                   <div className="sp-sec-type">{s.type}</div>
                   <div className="sp-sec-name">{s.name}</div>

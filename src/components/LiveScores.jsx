@@ -77,7 +77,7 @@ function PartidoCard({ p, onPredict }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {p.liga_logo && (
-            <img src={p.liga_logo} alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+            <img loading="lazy" decoding="async" src={p.liga_logo} alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
           )}
           <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 120 }}>
@@ -115,7 +115,7 @@ function PartidoCard({ p, onPredict }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
               {t.logo && (
-                <img src={t.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+                <img loading="lazy" decoding="async" src={t.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
                   onError={e => e.target.style.display = 'none'} />
               )}
               <span style={{

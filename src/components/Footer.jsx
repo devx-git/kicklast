@@ -1,14 +1,14 @@
 const TEAM_LOGOS = [
-  { src: '/img/realmadrid1.png', alt: 'Real Madrid' }, { src: '/img/barcelona1.png', alt: 'Barcelona' },
-  { src: '/img/mancity1.png', alt: 'Man City' }, { src: '/img/psg7.png', alt: 'PSG' },
-  { src: '/img/bayern1.png', alt: 'Bayern' }, { src: '/img/liverpool1.png', alt: 'Liverpool' },
-  { src: '/img/inter1.png', alt: 'Inter Milan' }, { src: '/img/atletico1.png', alt: 'Atlético' },
-  { src: '/img/boca1.png', alt: 'Boca Juniors' }, { src: '/img/river1.png', alt: 'River Plate' },
-  { src: '/img/flamengo1.png', alt: 'Flamengo' }, { src: '/img/america1.png', alt: 'América' },
-  { src: '/img/fifa1.png', alt: 'FIFA World Cup' }, { src: '/img/wefa1.png', alt: 'UEFA Champions' },
-  { src: '/img/premier1.png', alt: 'Premier League' }, { src: '/img/laliga1.png', alt: 'La Liga' },
-  { src: '/img/seriea1.png', alt: 'Serie A' }, { src: '/img/bundesliga1.png', alt: 'Bundesliga' },
-  { src: '/img/ligue-1.0.png', alt: 'Ligue 1' }, { src: '/img/mls1.png', alt: 'MLS' },
+  { src: '/img/realmadrid1.webp', alt: 'Real Madrid' }, { src: '/img/barcelona1.webp', alt: 'Barcelona' },
+  { src: '/img/mancity1.webp', alt: 'Man City' }, { src: '/img/psg7.webp', alt: 'PSG' },
+  { src: '/img/bayern1.webp', alt: 'Bayern' }, { src: '/img/liverpool1.webp', alt: 'Liverpool' },
+  { src: '/img/inter1.webp', alt: 'Inter Milan' }, { src: '/img/atletico1.webp', alt: 'Atlético' },
+  { src: '/img/boca1.webp', alt: 'Boca Juniors' }, { src: '/img/river1.webp', alt: 'River Plate' },
+  { src: '/img/flamengo1.webp', alt: 'Flamengo' }, { src: '/img/america1.webp', alt: 'América' },
+  { src: '/img/fifa1.webp', alt: 'FIFA World Cup' }, { src: '/img/wefa1.webp', alt: 'UEFA Champions' },
+  { src: '/img/premier1.webp', alt: 'Premier League' }, { src: '/img/laliga1.webp', alt: 'La Liga' },
+  { src: '/img/seriea1.webp', alt: 'Serie A' }, { src: '/img/bundesliga1.webp', alt: 'Bundesliga' },
+  { src: '/img/ligue-1.0.webp', alt: 'Ligue 1' }, { src: '/img/mls1.webp', alt: 'MLS' },
 ];
 const LOGOS_DOUBLED = [...TEAM_LOGOS, ...TEAM_LOGOS];
 
@@ -35,7 +35,7 @@ export default function Footer() {
         <div className="lk-logos-track">
           {LOGOS_DOUBLED.map((l, i) => (
             <div key={i} className="lk-logo-item" title={l.alt}>
-              <img src={l.src} alt={l.alt} className="lk-logo-img-sm" />
+              <img loading="lazy" decoding="async" src={l.src} alt={l.alt} className="lk-logo-img-sm" />
             </div>
           ))}
         </div>
@@ -43,7 +43,7 @@ export default function Footer() {
 
       <div className="lk-footer-container">
         <div className="lk-footer-brand">
-          <img src="/img/kicklast02.png" alt="Kick Last" className="lk-brand-logo" />
+          <img loading="eager" decoding="async" src="/img/kicklast02.webp" alt="Kick Last" className="lk-brand-logo" />
           <div className="lk-brand-tagline">El juego dentro del juego</div>
           <p className="lk-brand-desc">Sistema de predicciones futbolísticas para el Mundial 2026. Donde la intuición vale más que la suerte.</p>
           <div className="lk-live-pill">

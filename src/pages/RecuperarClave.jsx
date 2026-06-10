@@ -23,7 +23,7 @@ export default function RecuperarClave() {
     <div className="lk-auth-page">
       <div className="lk-auth-card">
         <a href="/" className="lk-auth-logo">
-          <img src="/img/kicklast02.png" alt="Kick Last" style={{ height: 36 }} />
+          <img loading="eager" decoding="async" src="/img/kicklast02.webp" alt="Kick Last" style={{ height: 36 }} />
         </a>
 
         {estado === 'ok' ? (

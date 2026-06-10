@@ -665,7 +665,7 @@ function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msg
                     <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 8 }}>✓ COMPROBANTE DE PAGO</div>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                       {sol.comprobante_url && (
-                        <img src={sol.comprobante_url} alt="comprobante" onClick={() => setVerImg(sol.comprobante_url)}
+                        <img loading="lazy" decoding="async" src={sol.comprobante_url} alt="comprobante" onClick={() => setVerImg(sol.comprobante_url)}
                           style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, cursor: 'zoom-in', border: '1px solid #8dc63f40', flexShrink: 0 }}
                           title="Haz clic para ampliar" />
                       )}
@@ -761,7 +761,7 @@ function DistSolicitudesSection({ solDist, pendDist, loadingDist, actioning, msg
       {verImg && (
         <div onClick={() => setVerImg(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' }}>
-          <img src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
+          <img loading="lazy" decoding="async" src={verImg} alt="comprobante" style={{ maxWidth: '90vw', maxHeight: '88vh', borderRadius: 8, boxShadow: '0 0 40px #000' }} />
           <div style={{ position: 'absolute', top: 20, right: 24, color: '#fff', fontSize: 28, cursor: 'pointer', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</div>
         </div>
       )}

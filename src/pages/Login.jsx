@@ -1,16 +1,31 @@
 import { useState } from 'react';
 import { authService } from '../services/authService';
+import { validateLoginForm } from '../utils/sanitize';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const handle = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handle = e => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    // Limpiar error del campo al editar
+    setFieldErrors(fe => ({ ...fe, [e.target.name]: undefined }));
+  };
 
   const submit = async e => {
     e.preventDefault();
     setError('');
+
+    // Validación de formato en el cliente antes de enviar
+    const { valid, errors } = validateLoginForm(form);
+    if (!valid) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     setLoading(true);
     try {
       await authService.login(form);
@@ -34,11 +49,13 @@ export default function Login() {
         <form onSubmit={submit} className="lk-auth-form">
           <div className="lk-field">
             <label>Email</label>
-            <input name="email" type="email" value={form.email} onChange={handle} required placeholder="tu@email.com" />
+            <input name="email" type="email" value={form.email} onChange={handle} required placeholder="tu@email.com" autoComplete="email" maxLength={120} />
+            {fieldErrors.email && <span style={{ color: '#e74c3c', fontSize: 11 }}>{fieldErrors.email}</span>}
           </div>
           <div className="lk-field">
             <label>Contraseña</label>
-            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="••••••••" />
+            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="••••••••" autoComplete="current-password" maxLength={128} />
+            {fieldErrors.password && <span style={{ color: '#e74c3c', fontSize: 11 }}>{fieldErrors.password}</span>}
           </div>
           {error && <div className="lk-auth-error">{error}</div>}
           <div style={{ textAlign: 'right', marginBottom: 8 }}>

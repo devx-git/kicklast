@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { authService } from '../services/authService';
+import { validateRegisterForm, isStrongPassword, PASSWORD_HINT, isValidPhone } from '../utils/sanitize';
 
 const PAISES = [
   { code: 'CO', label: '🇨🇴 Colombia', moneda: 'COP' },
@@ -31,8 +32,15 @@ export default function Register() {
   const submit = async e => {
     e.preventDefault();
     setError('');
+
+    // Validaciones de seguridad
     if (form.password !== form.confirmar) { setError('Las contraseñas no coinciden'); return; }
-    if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (!isStrongPassword(form.password)) { setError(PASSWORD_HINT); return; }
+    if (form.telefono && !isValidPhone(form.telefono)) { setError('Teléfono inválido. Ejemplo: +57 3001234567'); return; }
+
+    const { valid, errors: valErrors } = validateRegisterForm(form);
+    if (!valid) { setError(Object.values(valErrors)[0]); return; }
+
     if (!form.acepta_terminos) { setError('Debes aceptar los términos y condiciones para continuar'); return; }
     setLoading(true);
     try {
@@ -99,7 +107,7 @@ export default function Register() {
           </div>
           <div className="lk-field">
             <label>Contraseña</label>
-            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="Mínimo 6 caracteres" minLength={6} autoComplete="new-password" />
+            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="Mínimo 8 car. + mayúsc. + número" minLength={8} maxLength={128} autoComplete="new-password" />
           </div>
           <div className="lk-field">
             <label>Confirmar contraseña</label>

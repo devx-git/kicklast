@@ -1379,109 +1379,119 @@ function CanjearPinTab({ distribuidorNombre }) {
             <span style={{ color: '#a78bfa', fontFamily: 'Roboto Mono, monospace', fontSize: 11 }}>{codigoPIN}</span>
           </div>
 
-          {/* Búsqueda */}
-          <form onSubmit={buscarUsuario}>
-            <div style={{ marginBottom: 14 }}>
-              <label style={LABEL}>BUSCAR POR</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
-                {[
-                  { val: 'email_usuario',     label: 'Email'     },
-                  { val: 'telefono_usuario',  label: 'Teléfono'  },
-                  { val: 'documento_usuario', label: 'Documento' },
-                  { val: 'usuario_id',        label: 'UUID'      },
-                ].map(opt => (
-                  <button key={opt.val} type="button" onClick={() => { setBuscarPor(opt.val); setBuscarVal(''); setUsuario(null); setUsuarioNoEncontrado(false); setCrearNuevo(false); setErr(''); }}
-                    style={{ background: buscarPor === opt.val ? '#1e3a2a' : '#0a0d14', border: `1px solid ${buscarPor === opt.val ? '#8dc63f' : '#1e2a3a'}`, borderRadius: 6, padding: '8px 4px', color: buscarPor === opt.val ? '#8dc63f' : '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, cursor: 'pointer' }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <input value={buscarVal} onChange={e => { setBuscarVal(e.target.value); setUsuario(null); setUsuarioNoEncontrado(false); setCrearNuevo(false); }}
-                placeholder={buscarPor === 'email_usuario' ? 'usuario@ejemplo.com' : buscarPor === 'telefono_usuario' ? '+57 300 123 4567' : buscarPor === 'documento_usuario' ? '12345678' : 'uuid del usuario'}
-                style={INPUT} />
-            </div>
-            <button type="submit" disabled={buscando || !buscarVal.trim()}
-              style={{ width: '100%', background: buscando || !buscarVal.trim() ? '#1e2535' : '#00d4ff', color: buscando || !buscarVal.trim() ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '12px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
-              {buscando ? 'BUSCANDO...' : '🔍 BUSCAR USUARIO'}
+          {/* Toggle: buscar existente vs crear nuevo */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            <button type="button"
+              onClick={() => { setCrearNuevo(false); setUsuario(null); setUsuarioNoEncontrado(false); setBuscarVal(''); setErr(''); }}
+              style={{ flex: 1, background: !crearNuevo ? 'rgba(0,212,255,0.12)' : '#0a0d14', border: `1.5px solid ${!crearNuevo ? '#00d4ff' : '#1e2a3a'}`, borderRadius: 7, padding: '11px 8px', color: !crearNuevo ? '#00d4ff' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em' }}>
+              🔍 BUSCAR USUARIO EXISTENTE
             </button>
-          </form>
+            <button type="button"
+              onClick={() => { setCrearNuevo(true); setUsuario(null); setUsuarioNoEncontrado(false); setBuscarVal(''); setErr(''); }}
+              style={{ flex: 1, background: crearNuevo ? 'rgba(167,139,250,0.12)' : '#0a0d14', border: `1.5px solid ${crearNuevo ? '#a78bfa' : '#1e2a3a'}`, borderRadius: 7, padding: '11px 8px', color: crearNuevo ? '#a78bfa' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em' }}>
+              ➕ CREAR USUARIO NUEVO
+            </button>
+          </div>
 
-          {/* Usuario encontrado */}
-          {usuario && !crearNuevo && (
-            <div style={{ marginTop: 16, background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 8, padding: '14px 16px' }}>
-              <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.1em', marginBottom: 10 }}>✓ USUARIO ENCONTRADO</div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <span style={{ fontSize: 26 }}>👤</span>
-                <div>
-                  <div style={{ color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 17, fontWeight: 700 }}>{usuario.nombre}</div>
-                  <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{usuario.email}</div>
-                  {usuario.telefono && <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>{usuario.telefono}</div>}
+          {/* ── Modo: BUSCAR USUARIO ── */}
+          {!crearNuevo && (
+            <>
+              <form onSubmit={buscarUsuario}>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={LABEL}>BUSCAR POR</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
+                    {[
+                      { val: 'email_usuario',     label: 'Email'     },
+                      { val: 'telefono_usuario',  label: 'Teléfono'  },
+                      { val: 'documento_usuario', label: 'Documento' },
+                      { val: 'usuario_id',        label: 'UUID'      },
+                    ].map(opt => (
+                      <button key={opt.val} type="button" onClick={() => { setBuscarPor(opt.val); setBuscarVal(''); setUsuario(null); setUsuarioNoEncontrado(false); setErr(''); }}
+                        style={{ background: buscarPor === opt.val ? '#1e3a2a' : '#0a0d14', border: `1px solid ${buscarPor === opt.val ? '#8dc63f' : '#1e2a3a'}`, borderRadius: 6, padding: '8px 4px', color: buscarPor === opt.val ? '#8dc63f' : '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, cursor: 'pointer' }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input value={buscarVal} onChange={e => { setBuscarVal(e.target.value); setUsuario(null); setUsuarioNoEncontrado(false); }}
+                    placeholder={buscarPor === 'email_usuario' ? 'usuario@ejemplo.com' : buscarPor === 'telefono_usuario' ? '+57 300 123 4567' : buscarPor === 'documento_usuario' ? '12345678' : 'uuid del usuario'}
+                    style={INPUT} />
                 </div>
-                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                  <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 13 }}>{Number(usuario.saldo || 0).toLocaleString('es-CO')} cr</div>
-                  <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 9 }}>saldo actual</div>
-                </div>
-              </div>
-            </div>
-          )}
+                <button type="submit" disabled={buscando || !buscarVal.trim()}
+                  style={{ width: '100%', background: buscando || !buscarVal.trim() ? '#1e2535' : '#00d4ff', color: buscando || !buscarVal.trim() ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '12px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+                  {buscando ? 'BUSCANDO...' : '🔍 BUSCAR USUARIO'}
+                </button>
+              </form>
 
-          {/* Usuario NO encontrado — opción de crear */}
-          {usuarioNoEncontrado && (
-            <div style={{ marginTop: 16, background: '#1a0a20', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, padding: '14px 16px' }}>
-              <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, marginBottom: 10 }}>
-                ⚠ Usuario no encontrado
-              </div>
-              {!crearNuevo ? (
-                <>
-                  <p style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, margin: '0 0 12px' }}>
-                    El usuario no tiene cuenta. Puedes crearle una en este momento con datos mínimos.
-                  </p>
-                  <button type="button" onClick={() => setCrearNuevo(true)}
-                    style={{ background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 20px', borderRadius: 6, cursor: 'pointer' }}>
-                    ➕ CREAR CUENTA NUEVA
-                  </button>
-                </>
-              ) : (
-                <div>
-                  <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>DATOS DEL NUEVO USUARIO</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Usuario encontrado */}
+              {usuario && (
+                <div style={{ marginTop: 16, background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 8, padding: '14px 16px' }}>
+                  <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.1em', marginBottom: 10 }}>✓ USUARIO ENCONTRADO</div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: 26 }}>👤</span>
                     <div>
-                      <label style={LABEL}>NOMBRE COMPLETO *</label>
-                      <input value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(u => ({ ...u, nombre: e.target.value }))}
-                        placeholder="Nombre del cliente" maxLength={80} style={INPUT} />
+                      <div style={{ color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 17, fontWeight: 700 }}>{usuario.nombre}</div>
+                      <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{usuario.email}</div>
+                      {usuario.telefono && <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>{usuario.telefono}</div>}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label style={LABEL}>EMAIL <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
-                        <input type="email" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(u => ({ ...u, email: e.target.value }))}
-                          placeholder="cliente@email.com" maxLength={100} style={INPUT} />
-                      </div>
-                      <div>
-                        <label style={LABEL}>TELÉFONO <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
-                        <input type="tel" value={nuevoUsuario.telefono} onChange={e => setNuevoUsuario(u => ({ ...u, telefono: e.target.value }))}
-                          placeholder="+57 300..." maxLength={20} style={INPUT} />
-                      </div>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                      <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 13 }}>{Number(usuario.saldo || 0).toLocaleString('es-CO')} cr</div>
+                      <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 9 }}>saldo actual</div>
                     </div>
-                    <div>
-                      <label style={LABEL}>PAÍS</label>
-                      <select value={nuevoUsuario.pais} onChange={e => setNuevoUsuario(u => ({ ...u, pais: e.target.value }))}
-                        style={{ ...INPUT, cursor: 'pointer' }}>
-                        {[['CO','🇨🇴 Colombia'],['MX','🇲🇽 México'],['AR','🇦🇷 Argentina'],['PE','🇵🇪 Perú'],['VE','🇻🇪 Venezuela'],['EC','🇪🇨 Ecuador'],['US','🇺🇸 Estados Unidos'],['ES','🇪🇸 España']].map(([c,l]) => (
-                          <option key={c} value={c}>{l}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '10px 12px', color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 11, lineHeight: 1.5 }}>
-                      ⚠ Se generará una contraseña temporal que debes entregar al cliente.
-                      El cliente podrá cambiarla en Cuenta → Cambiar Contraseña.
-                    </div>
-                    <button type="button" onClick={() => { setCrearNuevo(false); setNuevoUsuario({ nombre: '', email: '', telefono: '', pais: 'CO' }); }}
-                      style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>
-                      ✕ CANCELAR
-                    </button>
                   </div>
                 </div>
               )}
+
+              {/* Usuario NO encontrado */}
+              {usuarioNoEncontrado && (
+                <div style={{ marginTop: 14, background: '#150a1a', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>⚠</span>
+                  <div>
+                    <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12 }}>Usuario no encontrado</div>
+                    <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 2 }}>
+                      Usa el botón <strong style={{ color: '#a78bfa' }}>CREAR USUARIO NUEVO</strong> de arriba para registrarlo ahora.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Modo: CREAR USUARIO NUEVO ── */}
+          {crearNuevo && (
+            <div style={{ background: '#0f0a1a', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 8, padding: '16px' }}>
+              <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 14 }}>DATOS DEL NUEVO USUARIO</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={LABEL}>NOMBRE COMPLETO *</label>
+                  <input value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(u => ({ ...u, nombre: e.target.value }))}
+                    placeholder="Nombre del cliente" maxLength={80} style={INPUT} autoFocus />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={LABEL}>EMAIL <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
+                    <input type="email" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(u => ({ ...u, email: e.target.value }))}
+                      placeholder="cliente@email.com" maxLength={100} style={INPUT} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>TELÉFONO <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
+                    <input type="tel" value={nuevoUsuario.telefono} onChange={e => setNuevoUsuario(u => ({ ...u, telefono: e.target.value }))}
+                      placeholder="+57 300..." maxLength={20} style={INPUT} />
+                  </div>
+                </div>
+                <div>
+                  <label style={LABEL}>PAÍS</label>
+                  <select value={nuevoUsuario.pais} onChange={e => setNuevoUsuario(u => ({ ...u, pais: e.target.value }))}
+                    style={{ ...INPUT, cursor: 'pointer' }}>
+                    {[['CO','🇨🇴 Colombia'],['MX','🇲🇽 México'],['AR','🇦🇷 Argentina'],['PE','🇵🇪 Perú'],['VE','🇻🇪 Venezuela'],['EC','🇪🇨 Ecuador'],['US','🇺🇸 Estados Unidos'],['ES','🇪🇸 España']].map(([c,l]) => (
+                      <option key={c} value={c}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '10px 12px', color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 11, lineHeight: 1.5 }}>
+                  ⚠ Se generará automáticamente una contraseña temporal que debes entregar al cliente.
+                  El cliente puede cambiarla en Cuenta → Cambiar Contraseña.
+                </div>
+              </div>
             </div>
           )}
 

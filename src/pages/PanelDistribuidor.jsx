@@ -1074,59 +1074,547 @@ function MisPinesTab({ distribuidorNombre }) {
   );
 }
 
-// ── CANJEAR PIN ────────────────────────────────────────────────────────────
-function CanjearPinTab() {
-  const [codigo, setCodigo] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-  const [result, setResult] = useState(null);
+// ── CANJEAR PIN ASISTIDO ────────────────────────────────────────────────────
+// Distribuidor busca/crea al cliente y canjea un PIN de su inventario.
 
-  const canjear = async e => {
-    e.preventDefault();
-    if (!codigo.trim()) return;
-    setLoading(true); setMsg(''); setErr(''); setResult(null);
-    try {
-      const { data } = await api.post('/pines/canjear', { codigo: codigo.trim().toUpperCase() });
-      setResult(data);
-      setMsg('✓ PIN canjeado exitosamente');
-      setCodigo('');
-    } catch (ex) {
-      const m = ex.response?.data?.message;
-      setErr(Array.isArray(m) ? m.join(', ') : m || 'Código inválido o ya utilizado');
-    } finally { setLoading(false); }
+function CanjearPinTab({ distribuidorNombre }) {
+  // ── Estado general ────────────────────────────────────────────────────────
+  const [paso, setPaso] = useState(1); // 1=PIN  2=USUARIO  3=CONFIRMAR  4=ÉXITO
+
+  // Paso 1 — PIN
+  const [modoPIN, setModoPIN]     = useState('inventario'); // 'inventario' | 'manual'
+  const [pinesInv, setPinesInv]   = useState([]);
+  const [loadingInv, setLoadingInv] = useState(true);
+  const [pinSel, setPinSel]       = useState(null);  // objeto pin del inventario
+  const [codigoManual, setCodigoManual] = useState('');
+  const [filtroCred, setFiltroCred]     = useState(0);
+
+  // Paso 2 — Usuario
+  const [buscarPor, setBuscarPor] = useState('email_usuario');
+  const [buscarVal, setBuscarVal] = useState('');
+  const [buscando, setBuscando]   = useState(false);
+  const [usuario, setUsuario]     = useState(null);  // usuario encontrado
+  const [usuarioNoEncontrado, setUsuarioNoEncontrado] = useState(false);
+  // Sub-form crear usuario nuevo
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', telefono: '', pais: 'CO' });
+  const [crearNuevo, setCrearNuevo]     = useState(false);
+
+  // Paso 3 — Confirmar
+  const [procesando, setProcesando]   = useState(false);
+
+  // Paso 4 — Éxito
+  const [resultado, setResultado]     = useState(null);
+  const [comprobante, setComprobante] = useState(null);
+
+  // Mensajes
+  const [err, setErr] = useState('');
+
+  // ── Cargar inventario DISPONIBLE y VENDIDO ────────────────────────────────
+  useEffect(() => {
+    api.get('/pines/distribuidor/mis-pines')
+      .then(r => {
+        const todos = r.data?.pines || [];
+        setPinesInv(todos.filter(p => p.estado === 'DISPONIBLE' || p.estado === 'VENDIDO'));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingInv(false));
+  }, []);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const codigoPIN = modoPIN === 'inventario'
+    ? (pinSel?.codigo || '')
+    : codigoManual.trim().toUpperCase();
+
+  const creditosPIN = modoPIN === 'inventario'
+    ? Number(pinSel?.creditos || 0)
+    : null; // no conocido aún si es manual
+
+  const pinesFiltrados = pinesInv.filter(p =>
+    filtroCred === 0 || Number(p.creditos) === filtroCred,
+  );
+
+  const VALS_FILTRO = [...new Set(pinesInv.map(p => Number(p.creditos)))].sort((a,b) => a - b);
+
+  // ── PASO 1 → PASO 2: validar PIN seleccionado ────────────────────────────
+  const avanzarDesdePIN = () => {
+    setErr('');
+    if (!codigoPIN) { setErr('Selecciona o ingresa un código PIN'); return; }
+    if (modoPIN === 'manual' && codigoPIN.length < 8) {
+      setErr('El código PIN parece demasiado corto'); return;
+    }
+    setPaso(2);
+    setUsuario(null); setBuscarVal(''); setUsuarioNoEncontrado(false);
   };
 
+  // ── PASO 2: buscar usuario ────────────────────────────────────────────────
+  const buscarUsuario = async e => {
+    e.preventDefault();
+    if (!buscarVal.trim()) { setErr('Ingresa el dato del usuario'); return; }
+    setBuscando(true); setErr(''); setUsuario(null); setUsuarioNoEncontrado(false);
+    try {
+      const paramMap = {
+        email_usuario:    'email',
+        telefono_usuario: 'telefono',
+        documento_usuario:'documento',
+        usuario_id:       'id',
+      };
+      const param = paramMap[buscarPor] || 'email';
+      const { data } = await api.get('/distribuidores/buscar-usuario', {
+        params: { [param]: buscarVal.trim() },
+      });
+      setUsuario(data);
+      setErr('');
+    } catch (ex) {
+      const st = ex.response?.status;
+      if (st === 404) {
+        setUsuarioNoEncontrado(true);
+      } else {
+        const m = ex.response?.data?.message;
+        setErr(Array.isArray(m) ? m.join(', ') : m || 'Error al buscar usuario');
+      }
+    } finally { setBuscando(false); }
+  };
+
+  const avanzarDesdeUsuario = () => {
+    setErr('');
+    if (!usuario && !crearNuevo) {
+      setErr('Busca un usuario o activa la opción de crear cuenta nueva'); return;
+    }
+    if (crearNuevo && !nuevoUsuario.nombre.trim()) {
+      setErr('El nombre del nuevo usuario es requerido'); return;
+    }
+    if (crearNuevo && !nuevoUsuario.email.trim() && !nuevoUsuario.telefono.trim()) {
+      setErr('El nuevo usuario debe tener al menos email o teléfono'); return;
+    }
+    setPaso(3);
+  };
+
+  // ── PASO 3: confirmar y ejecutar el canje ─────────────────────────────────
+  const confirmarCanje = async () => {
+    setProcesando(true); setErr('');
+    try {
+      const body = {
+        codigo: codigoPIN,
+        ...(crearNuevo || !usuario ? {
+          crear_si_no_existe: true,
+          nuevo_usuario: {
+            nombre:   nuevoUsuario.nombre.trim(),
+            email:    nuevoUsuario.email.trim()    || undefined,
+            telefono: nuevoUsuario.telefono.trim() || undefined,
+            pais:     nuevoUsuario.pais             || 'CO',
+          },
+        } : {
+          usuario_id: usuario.id,
+        }),
+      };
+
+      const { data } = await api.post('/pines/distribuidor/canjear-asistido', body);
+      setResultado(data);
+
+      // Armar comprobante
+      setComprobante({
+        tipo:               'PIN',
+        codigo:             data.pin?.codigo || codigoPIN,
+        creditos:           data.pin?.creditos || creditosPIN || 0,
+        vendido_a:          data.usuario?.nombre || '',
+        distribuidorNombre: distribuidorNombre || 'Distribuidor',
+        fecha:              new Date(),
+      });
+
+      setPaso(4);
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setErr(Array.isArray(m) ? m.join(', ') : m || 'Error al canjear el PIN');
+    } finally { setProcesando(false); }
+  };
+
+  // ── Reset completo ────────────────────────────────────────────────────────
+  const reiniciar = () => {
+    setPaso(1); setPinSel(null); setCodigoManual('');
+    setUsuario(null); setBuscarVal(''); setUsuarioNoEncontrado(false);
+    setCrearNuevo(false); setNuevoUsuario({ nombre: '', email: '', telefono: '', pais: 'CO' });
+    setResultado(null); setComprobante(null); setErr('');
+  };
+
+  const nombreDestinatario = usuario?.nombre
+    || (crearNuevo && nuevoUsuario.nombre) || '—';
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 480 }}>
-      <div style={CARD}>
-        <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid #1e2a3a' }}>
-          CANJEAR PIN DE RECARGA
-        </div>
+    <div style={{ maxWidth: 640 }}>
 
-        {msg && <div style={{ background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 6, padding: '12px 14px', marginBottom: 16, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
-        {err && <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '12px 14px', marginBottom: 16, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+      {/* Comprobante post-canje */}
+      {comprobante && (
+        <ComprobanteTicket datos={comprobante} onClose={() => setComprobante(null)} />
+      )}
 
-        {result && (
-          <div style={{ background: '#0f1a28', border: '1px solid #00d4ff30', borderRadius: 6, padding: '14px 16px', marginBottom: 16 }}>
-            {result.vidas_acreditadas != null && <div style={{ color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 14 }}>+{result.vidas_acreditadas} vidas acreditadas</div>}
-            {result.creditos_acreditados != null && <div style={{ color: '#a78bfa', fontFamily: 'Roboto, sans-serif', fontSize: 14 }}>+{result.creditos_acreditados} créditos acreditados</div>}
-            <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 4 }}>Créditos = Vidas (1:1)</div>
-            {result.mensaje && <div style={{ color: '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 12, marginTop: 6 }}>{result.mensaje}</div>}
+      {/* Breadcrumb de pasos */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, background: '#0a0e1a', borderRadius: 8, overflow: 'hidden', border: '1px solid #1e2a3a' }}>
+        {[
+          { n: 1, label: '🔑 PIN'      },
+          { n: 2, label: '👤 USUARIO'  },
+          { n: 3, label: '✔ CONFIRMAR' },
+          { n: 4, label: '🎉 ÉXITO'   },
+        ].map(({ n, label }) => (
+          <div key={n} style={{
+            flex: 1, padding: '12px 8px', textAlign: 'center',
+            background: paso === n ? '#a78bfa18' : 'transparent',
+            borderRight: n < 4 ? '1px solid #1e2a3a' : 'none',
+            borderBottom: paso === n ? '2px solid #a78bfa' : '2px solid transparent',
+            cursor: paso > n ? 'pointer' : 'default',
+          }}
+            onClick={() => paso > n && n !== 4 && setPaso(n)}>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: paso >= n ? '#a78bfa' : '#4a5568', letterSpacing: '0.06em' }}>
+              {n}. {label}
+            </div>
           </div>
-        )}
-
-        <form onSubmit={canjear}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={LABEL}>CÓDIGO PIN</label>
-            <input value={codigo} onChange={e => setCodigo(e.target.value.toUpperCase())} placeholder="GURU-XXXX-XXXX-XXXX" maxLength={24}
-              style={{ ...INPUT, fontFamily: 'Roboto Mono, monospace', fontSize: 16, letterSpacing: '0.1em', textAlign: 'center' }} />
-          </div>
-          <button type="submit" disabled={loading || !codigo.trim()} style={{ width: '100%', background: (loading || !codigo.trim()) ? '#1e2535' : '#a78bfa', color: (loading || !codigo.trim()) ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 6, border: 'none', cursor: (loading || !codigo.trim()) ? 'not-allowed' : 'pointer' }}>
-            {loading ? 'CANJEANDO...' : 'CANJEAR PIN'}
-          </button>
-        </form>
+        ))}
       </div>
+
+      {err && (
+        <div style={{ background: '#1a0a0a', border: '1px solid #f8717140', borderRadius: 6, padding: '12px 14px', marginBottom: 18, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+          {err}
+        </div>
+      )}
+
+      {/* ──────────────── PASO 1: SELECCIONAR PIN ──────────────────────────── */}
+      {paso === 1 && (
+        <div style={CARD}>
+          <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 18, paddingBottom: 10, borderBottom: '1px solid #1e2a3a' }}>
+            PASO 1 — SELECCIONAR PIN A CANJEAR
+          </div>
+
+          {/* Toggle inventario / manual */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {[
+              { val: 'inventario', label: '📋 DE MI INVENTARIO' },
+              { val: 'manual',     label: '⌨ INGRESAR CÓDIGO'  },
+            ].map(o => (
+              <button key={o.val} type="button" onClick={() => { setModoPIN(o.val); setPinSel(null); setCodigoManual(''); setErr(''); }}
+                style={{ flex: 1, background: modoPIN === o.val ? 'rgba(167,139,250,0.15)' : '#0a0d14', border: `1.5px solid ${modoPIN === o.val ? '#a78bfa' : '#1e2a3a'}`, borderRadius: 7, padding: '10px 8px', color: modoPIN === o.val ? '#a78bfa' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em' }}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Inventario */}
+          {modoPIN === 'inventario' && (
+            <>
+              {/* Filtro por valor */}
+              {VALS_FILTRO.length > 1 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+                  <span style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 10, letterSpacing: '0.06em' }}>VALOR:</span>
+                  {[0, ...VALS_FILTRO].map(v => (
+                    <button key={v} type="button" onClick={() => setFiltroCred(v)}
+                      style={{ background: filtroCred === v ? 'rgba(141,198,63,0.15)' : 'transparent', border: `1px solid ${filtroCred === v ? '#8dc63f' : '#1e2a3a'}`, color: filtroCred === v ? '#8dc63f' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 10, padding: '4px 10px', borderRadius: 5, cursor: 'pointer' }}>
+                      {v === 0 ? 'TODOS' : `${v} cr`}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {loadingInv ? (
+                <div style={{ textAlign: 'center', padding: 30, color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Cargando inventario...</div>
+              ) : pinesFiltrados.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 28, color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, background: '#0a0d14', borderRadius: 8 }}>
+                  No tienes pines disponibles para canjear.<br/>
+                  <span style={{ fontSize: 11, color: '#4a5568' }}>Solicita más pines a tu promotor en la pestaña "Solicitar Pines".</span>
+                </div>
+              ) : (
+                <div style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {pinesFiltrados.map(p => {
+                    const sel = pinSel?.id === p.id;
+                    return (
+                      <div key={p.id} onClick={() => { setPinSel(p); setErr(''); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', background: sel ? 'rgba(167,139,250,0.12)' : '#0a0d14', border: `1.5px solid ${sel ? '#a78bfa' : '#1e2a3a'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 0.12s' }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${sel ? '#a78bfa' : '#2a3550'}`, background: sel ? '#a78bfa' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#0a0d14' }} />}
+                        </div>
+                        <div style={{ fontFamily: 'Roboto Mono, monospace', fontSize: 13, color: sel ? '#e2e8f0' : '#c0cad8', letterSpacing: '0.08em', flex: 1 }}>{p.codigo}</div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{Number(p.creditos)} cr</div>
+                          {p.estado === 'VENDIDO' && <div style={{ color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 9, marginTop: 2 }}>ENTREGADO</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pinSel && (
+                <div style={{ marginTop: 14, background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 7, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11 }}>PIN SELECCIONADO:</span>
+                  <span style={{ color: '#e2e8f0', fontFamily: 'Roboto Mono, monospace', fontSize: 13, letterSpacing: '0.08em' }}>{pinSel.codigo}</span>
+                  <span style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700 }}>{Number(pinSel.creditos)} cr</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Manual */}
+          {modoPIN === 'manual' && (
+            <div>
+              <label style={LABEL}>CÓDIGO PIN</label>
+              <input value={codigoManual} onChange={e => setCodigoManual(e.target.value.toUpperCase())} placeholder="GURU-XXXX-XXXX-XXXX" maxLength={24}
+                style={{ ...INPUT, fontFamily: 'Roboto Mono, monospace', fontSize: 18, letterSpacing: '0.1em', textAlign: 'center' }} />
+              <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 6 }}>
+                El código debe estar asignado a tu cuenta para poder canjearlo.
+              </div>
+            </div>
+          )}
+
+          <button type="button" onClick={avanzarDesdePIN}
+            disabled={modoPIN === 'inventario' ? !pinSel : !codigoManual.trim()}
+            style={{ width: '100%', marginTop: 20, background: (modoPIN === 'inventario' ? !pinSel : !codigoManual.trim()) ? '#1e2535' : '#a78bfa', color: (modoPIN === 'inventario' ? !pinSel : !codigoManual.trim()) ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '14px', borderRadius: 7, border: 'none', cursor: 'pointer', letterSpacing: '0.05em' }}>
+            SIGUIENTE → BUSCAR USUARIO
+          </button>
+        </div>
+      )}
+
+      {/* ──────────────── PASO 2: BUSCAR / CREAR USUARIO ──────────────────── */}
+      {paso === 2 && (
+        <div style={CARD}>
+          <div style={{ color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 18, paddingBottom: 10, borderBottom: '1px solid #1e2a3a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>PASO 2 — IDENTIFICAR AL BENEFICIARIO</span>
+            <span style={{ color: '#a78bfa', fontFamily: 'Roboto Mono, monospace', fontSize: 11 }}>{codigoPIN}</span>
+          </div>
+
+          {/* Búsqueda */}
+          <form onSubmit={buscarUsuario}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={LABEL}>BUSCAR POR</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
+                {[
+                  { val: 'email_usuario',     label: 'Email'     },
+                  { val: 'telefono_usuario',  label: 'Teléfono'  },
+                  { val: 'documento_usuario', label: 'Documento' },
+                  { val: 'usuario_id',        label: 'UUID'      },
+                ].map(opt => (
+                  <button key={opt.val} type="button" onClick={() => { setBuscarPor(opt.val); setBuscarVal(''); setUsuario(null); setUsuarioNoEncontrado(false); setCrearNuevo(false); setErr(''); }}
+                    style={{ background: buscarPor === opt.val ? '#1e3a2a' : '#0a0d14', border: `1px solid ${buscarPor === opt.val ? '#8dc63f' : '#1e2a3a'}`, borderRadius: 6, padding: '8px 4px', color: buscarPor === opt.val ? '#8dc63f' : '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, cursor: 'pointer' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <input value={buscarVal} onChange={e => { setBuscarVal(e.target.value); setUsuario(null); setUsuarioNoEncontrado(false); setCrearNuevo(false); }}
+                placeholder={buscarPor === 'email_usuario' ? 'usuario@ejemplo.com' : buscarPor === 'telefono_usuario' ? '+57 300 123 4567' : buscarPor === 'documento_usuario' ? '12345678' : 'uuid del usuario'}
+                style={INPUT} />
+            </div>
+            <button type="submit" disabled={buscando || !buscarVal.trim()}
+              style={{ width: '100%', background: buscando || !buscarVal.trim() ? '#1e2535' : '#00d4ff', color: buscando || !buscarVal.trim() ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '12px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+              {buscando ? 'BUSCANDO...' : '🔍 BUSCAR USUARIO'}
+            </button>
+          </form>
+
+          {/* Usuario encontrado */}
+          {usuario && !crearNuevo && (
+            <div style={{ marginTop: 16, background: '#0f2818', border: '1px solid #8dc63f40', borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.1em', marginBottom: 10 }}>✓ USUARIO ENCONTRADO</div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontSize: 26 }}>👤</span>
+                <div>
+                  <div style={{ color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 17, fontWeight: 700 }}>{usuario.nombre}</div>
+                  <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{usuario.email}</div>
+                  {usuario.telefono && <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>{usuario.telefono}</div>}
+                </div>
+                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                  <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 13 }}>{Number(usuario.saldo || 0).toLocaleString('es-CO')} cr</div>
+                  <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 9 }}>saldo actual</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Usuario NO encontrado — opción de crear */}
+          {usuarioNoEncontrado && (
+            <div style={{ marginTop: 16, background: '#1a0a20', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, marginBottom: 10 }}>
+                ⚠ Usuario no encontrado
+              </div>
+              {!crearNuevo ? (
+                <>
+                  <p style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, margin: '0 0 12px' }}>
+                    El usuario no tiene cuenta. Puedes crearle una en este momento con datos mínimos.
+                  </p>
+                  <button type="button" onClick={() => setCrearNuevo(true)}
+                    style={{ background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 20px', borderRadius: 6, cursor: 'pointer' }}>
+                    ➕ CREAR CUENTA NUEVA
+                  </button>
+                </>
+              ) : (
+                <div>
+                  <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.08em', marginBottom: 12 }}>DATOS DEL NUEVO USUARIO</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <label style={LABEL}>NOMBRE COMPLETO *</label>
+                      <input value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(u => ({ ...u, nombre: e.target.value }))}
+                        placeholder="Nombre del cliente" maxLength={80} style={INPUT} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={LABEL}>EMAIL <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
+                        <input type="email" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(u => ({ ...u, email: e.target.value }))}
+                          placeholder="cliente@email.com" maxLength={100} style={INPUT} />
+                      </div>
+                      <div>
+                        <label style={LABEL}>TELÉFONO <span style={{ color: '#4a5568' }}>(si tiene)</span></label>
+                        <input type="tel" value={nuevoUsuario.telefono} onChange={e => setNuevoUsuario(u => ({ ...u, telefono: e.target.value }))}
+                          placeholder="+57 300..." maxLength={20} style={INPUT} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={LABEL}>PAÍS</label>
+                      <select value={nuevoUsuario.pais} onChange={e => setNuevoUsuario(u => ({ ...u, pais: e.target.value }))}
+                        style={{ ...INPUT, cursor: 'pointer' }}>
+                        {[['CO','🇨🇴 Colombia'],['MX','🇲🇽 México'],['AR','🇦🇷 Argentina'],['PE','🇵🇪 Perú'],['VE','🇻🇪 Venezuela'],['EC','🇪🇨 Ecuador'],['US','🇺🇸 Estados Unidos'],['ES','🇪🇸 España']].map(([c,l]) => (
+                          <option key={c} value={c}>{l}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '10px 12px', color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 11, lineHeight: 1.5 }}>
+                      ⚠ Se generará una contraseña temporal que debes entregar al cliente.
+                      El cliente podrá cambiarla en Cuenta → Cambiar Contraseña.
+                    </div>
+                    <button type="button" onClick={() => { setCrearNuevo(false); setNuevoUsuario({ nombre: '', email: '', telefono: '', pais: 'CO' }); }}
+                      style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                      ✕ CANCELAR
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Botones de navegación */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="button" onClick={() => { setPaso(1); setErr(''); }}
+              style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '12px 20px', borderRadius: 6, border: '1px solid #2a3550', cursor: 'pointer' }}>
+              ← VOLVER
+            </button>
+            <button type="button" onClick={avanzarDesdeUsuario} disabled={!usuario && !crearNuevo}
+              style={{ flex: 1, background: !usuario && !crearNuevo ? '#1e2535' : '#a78bfa', color: !usuario && !crearNuevo ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '12px', borderRadius: 6, border: 'none', cursor: 'pointer', letterSpacing: '0.05em' }}>
+              SIGUIENTE → CONFIRMAR
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── PASO 3: CONFIRMAR ───────────────────────────────── */}
+      {paso === 3 && (
+        <div style={CARD}>
+          <div style={{ color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 18, paddingBottom: 10, borderBottom: '1px solid #1e2a3a' }}>
+            PASO 3 — CONFIRMAR CANJE
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Resumen PIN */}
+            <div style={{ background: '#0a0d14', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.1em', marginBottom: 8 }}>PIN A CANJEAR</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontFamily: 'Roboto Mono, monospace', fontSize: 15, color: '#e2e8f0', letterSpacing: '0.1em' }}>{codigoPIN}</div>
+                {creditosPIN && <div style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 700 }}>{creditosPIN} cr</div>}
+              </div>
+            </div>
+
+            {/* Resumen usuario */}
+            <div style={{ background: '#0a0d14', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.1em', marginBottom: 8 }}>
+                {crearNuevo ? 'NUEVO USUARIO A CREAR' : 'BENEFICIARIO'}
+              </div>
+              <div style={{ color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700 }}>{nombreDestinatario}</div>
+              {!crearNuevo && usuario?.email && <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{usuario.email}</div>}
+              {crearNuevo && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {nuevoUsuario.email && <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{nuevoUsuario.email}</div>}
+                  {nuevoUsuario.telefono && <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>{nuevoUsuario.telefono}</div>}
+                  <div style={{ color: '#f59e0b', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 4 }}>⚠ Se creará una cuenta nueva con contraseña temporal</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: 'rgba(141,198,63,0.06)', border: '1px solid rgba(141,198,63,0.2)', borderRadius: 7, padding: '12px 14px', color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>
+              Esta acción es inmediata e irreversible. El PIN quedará como CANJEADO.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="button" onClick={() => { setPaso(2); setErr(''); }} disabled={procesando}
+              style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '13px 20px', borderRadius: 6, border: '1px solid #2a3550', cursor: 'pointer' }}>
+              ← VOLVER
+            </button>
+            <button type="button" onClick={confirmarCanje} disabled={procesando}
+              style={{ flex: 1, background: procesando ? '#1e2535' : '#8dc63f', color: procesando ? '#6b7a8d' : '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 6, border: 'none', cursor: procesando ? 'not-allowed' : 'pointer', letterSpacing: '0.05em' }}>
+              {procesando ? 'CANJEANDO...' : '✓ CONFIRMAR CANJE'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── PASO 4: ÉXITO ──────────────────────────────────── */}
+      {paso === 4 && resultado && (
+        <div style={CARD}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, color: '#8dc63f', fontWeight: 700 }}>
+              ¡PIN CANJEADO!
+            </div>
+            <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, marginTop: 6 }}>
+              {resultado.pin?.creditos} créditos acreditados a <strong style={{ color: '#fff' }}>{resultado.usuario?.nombre}</strong>
+            </div>
+          </div>
+
+          {/* Credenciales temporales si se creó usuario */}
+          {resultado.credenciales_temp && (
+            <div style={{ background: '#1a0a0a', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, padding: '16px 18px', marginBottom: 20 }}>
+              <div style={{ color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em', marginBottom: 12 }}>
+                ⚠ CREDENCIALES DE ACCESO TEMPORALES — ENTREGAR AL CLIENTE
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ background: '#0a0e1a', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>Email / usuario:</span>
+                  <span style={{ color: '#e2e8f0', fontFamily: 'Roboto Mono, monospace', fontSize: 13 }}>{resultado.credenciales_temp.email}</span>
+                </div>
+                <div style={{ background: '#0a0e1a', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>Contraseña temporal:</span>
+                  <span style={{ color: '#f59e0b', fontFamily: 'Roboto Mono, monospace', fontSize: 15, fontWeight: 700, letterSpacing: '0.1em' }}>{resultado.credenciales_temp.password}</span>
+                </div>
+              </div>
+              <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 10, lineHeight: 1.5 }}>
+                El cliente puede cambiar la contraseña en la app: Cuenta → Cambiar Contraseña
+              </div>
+            </div>
+          )}
+
+          <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>PIN canjeado</span>
+              <span style={{ color: '#a78bfa', fontFamily: 'Roboto Mono, monospace', fontSize: 12 }}>{resultado.pin?.codigo}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>Créditos acreditados</span>
+              <span style={{ color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700 }}>+{resultado.pin?.creditos} cr</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>Saldo nuevo del usuario</span>
+              <span style={{ color: '#c0cad8', fontFamily: 'Oswald, sans-serif', fontSize: 14 }}>{Number(resultado.saldo_nuevo || 0).toLocaleString('es-CO')} cr</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" onClick={() => setComprobante({
+              tipo: 'PIN', codigo: resultado.pin?.codigo, creditos: resultado.pin?.creditos,
+              vendido_a: resultado.usuario?.nombre, distribuidorNombre, fecha: new Date(),
+            })}
+              style={{ flex: 1, background: '#1e2535', color: '#c0cad8', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '13px', borderRadius: 6, border: '1px solid #2a3550', cursor: 'pointer' }}>
+              🖨 VER COMPROBANTE
+            </button>
+            <button type="button" onClick={reiniciar}
+              style={{ flex: 1, background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 6, border: 'none', cursor: 'pointer', letterSpacing: '0.05em' }}>
+              ✓ NUEVO CANJE
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1204,7 +1692,7 @@ export default function PanelDistribuidor() {
         {tab === 'comisiones' && <MisComisionesTab perfil={perfil} />}
         {tab === 'mispines'   && <MisPinesTab distribuidorNombre={perfil?.nombre} />}
         {tab === 'pines'      && <SolicitarPinesTab />}
-        {tab === 'pin'        && <CanjearPinTab />}
+        {tab === 'pin'        && <CanjearPinTab distribuidorNombre={perfil?.nombre} />}
         {tab === 'cuenta'     && <EditarPerfil perfil={perfil} />}
       </div>
     </div>

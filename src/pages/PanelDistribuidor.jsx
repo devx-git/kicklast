@@ -1355,8 +1355,8 @@ function CanjearPinTab({ distribuidorNombre }) {
           {modoPIN === 'manual' && (
             <div>
               <label style={LABEL}>CÓDIGO PIN</label>
-              <input value={codigoManual} onChange={e => setCodigoManual(e.target.value.toUpperCase())} placeholder="GURU-XXXX-XXXX-XXXX" maxLength={24}
-                style={{ ...INPUT, fontFamily: 'Roboto Mono, monospace', fontSize: 18, letterSpacing: '0.1em', textAlign: 'center' }} />
+              <input value={codigoManual} onChange={e => setCodigoManual(e.target.value.toUpperCase())} placeholder="GURU-XXXX-XXXX-XXXX-XXXX" maxLength={25}
+                style={{ ...INPUT, fontFamily: 'Roboto Mono, monospace', fontSize: 15, letterSpacing: '0.06em', textAlign: 'center' }} />
               <div style={{ color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 11, marginTop: 6 }}>
                 El código debe estar asignado a tu cuenta para poder canjearlo.
               </div>

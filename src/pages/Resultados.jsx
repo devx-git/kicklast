@@ -118,7 +118,7 @@ function FilaPartido({ p }) {
             color: '#8dc63f', textDecoration: 'none', letterSpacing: '0.05em',
             border: '1px solid #8dc63f30', borderRadius: 4, padding: '2px 6px',
           }}>
-            VER GURU
+            VER EVENTO
           </a>
         ) : (
           <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>

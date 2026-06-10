@@ -136,7 +136,7 @@ export default function EventoDetalle() {
                           {/* Botón GURÚ por partido */}
                           <button onClick={() => setModal({ ev, seleccion: null, partidoId: p.id })}
                             style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #8dc63f40', cursor: 'pointer', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                            🧠 GURÚ ({Number(ev.costo_creditos) || 2} CR)
+                            🧠 PREDICCIÓN ({Number(ev.costo_creditos) || 2} CR)
                           </button>
                         </div>
 
@@ -162,7 +162,7 @@ export default function EventoDetalle() {
                           </>
                         ) : (
                           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#4a5568', textAlign: 'center', padding: '8px 0' }}>
-                            Sin cuotas configuradas — solo Gurú disponible
+                            Sin cuotas configuradas — solo Predicción disponible
                           </div>
                         )}
                       </div>
@@ -198,12 +198,12 @@ export default function EventoDetalle() {
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 280, background: '#161e2e', border: '1px solid #8dc63f30', borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#8dc63f', letterSpacing: '0.1em' }}>COMPRAR GURÚ</div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#8dc63f', letterSpacing: '0.1em' }}>COMPRAR PREDICCIÓN</div>
                   <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', textAlign: 'center' }}>10 predicciones · Manual o Automático</div>
                   <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 700, color: '#fff' }}>{Number(ev.costo_creditos) || 2} CR</div>
                   <button onClick={() => setModal({ ev, seleccion: null })}
                     style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '14px 32px', borderRadius: 8, border: 'none', cursor: 'pointer', letterSpacing: '0.05em' }}>
-                    COMPRAR GURÚ →
+                    COMPRAR PREDICCIÓN →
                   </button>
                 </div>
               </div>

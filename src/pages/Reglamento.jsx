@@ -51,11 +51,11 @@ export default function Reglamento() {
         <Rule num="1.3" text="Cada persona física puede registrar una sola cuenta. Las cuentas duplicadas serán suspendidas sin previo aviso y los saldos congelados hasta verificación." />
         <Rule num="1.4" text="Empleados, contratistas y familiares directos del equipo de KickLast no pueden participar en eventos con premio real." />
 
-        <SecTitle n="02" title="Sistema de predicciones — Gurú" />
-        <Rule num="2.1" text="Un Gurú es un conjunto de 10 preguntas sobre un evento deportivo. El costo de activación se indica antes de confirmar." />
+        <SecTitle n="02" title="Sistema de predicciones" />
+        <Rule num="2.1" text="Una Predicción es un conjunto de 10 preguntas sobre un evento deportivo. El costo de activación se indica antes de confirmar." />
         <Rule num="2.2" text="Las predicciones solo pueden enviarse o modificarse mientras el evento esté en estado ABIERTO. Una vez cerrado el período, ningún cambio es válido." />
         <Rule num="2.3" text="El sistema de resolución automática compara las respuestas con los resultados oficiales registrados en la plataforma." />
-        <Rule num="2.4" text="Acertar 10/10 → accedes al pozo acumulado. Acertar 7, 8 o 9 → devolución de créditos. Menos de 7 → se pierden los créditos de ese Gurú." />
+        <Rule num="2.4" text="Acertar 10/10 → accedes al pozo acumulado. Acertar 7, 8 o 9 → devolución de créditos. Menos de 7 → se pierden los créditos de esa Predicción." />
         <Rule num="2.5" text="Si el pozo acumulado no tiene ganador, el 80% del monto pasa al siguiente evento acumulándose. El 20% restante se reparte entre los jugadores con mayor número de aciertos en ese evento." />
 
         <SecTitle n="03" title="Apuestas deportivas 1-X-2" />
@@ -71,7 +71,7 @@ export default function Reglamento() {
         <Rule num="4.4" text="Los créditos no son transferibles entre usuarios, salvo mediante los mecanismos oficiales habilitados (distribuidores autorizados)." />
 
         <SecTitle n="05" title="Retiros y premios" />
-        <Rule num="5.1" text="Para solicitar un retiro debes: tener mínimo $100 USD en créditos Y cumplir al menos uno de los criterios de juego (pozo ganado, 3 gurús ganados, o 3 apuestas ganadas)." />
+        <Rule num="5.1" text="Para solicitar un retiro debes: tener mínimo $100 USD en créditos Y cumplir al menos uno de los criterios de juego (pozo ganado, 3 predicciones ganadas, o 3 apuestas ganadas)." />
         <Rule num="5.2" text="Se aplica retención fiscal según la legislación del país del usuario y una comisión de plataforma del 3%, ambas visibles antes de confirmar el retiro." />
         <Rule num="5.3" text="Los retiros se procesan en 1-3 días hábiles. KickLast se reserva hasta 5 días adicionales para verificaciones de seguridad en montos superiores a $5,000 USD." />
         <Rule num="5.4" text="KickLast puede solicitar verificación de identidad (KYC) en cualquier momento, especialmente para montos elevados. La negativa a verificar puede resultar en suspensión temporal de retiros." />

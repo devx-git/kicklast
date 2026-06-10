@@ -13,9 +13,9 @@ const FAQS = [
     ],
   },
   {
-    sec: '⚽ Predicciones y Gurús',
+    sec: '⚽ Predicciones',
     items: [
-      { q: '¿Qué es un Gurú?', a: 'Un Gurú es un set de 10 predicciones sobre un evento deportivo. Pagas créditos para activarlo y predices los resultados de cada pregunta. Si aciertas 10/10 compartes el pozo acumulado. Si aciertas 7, 8 o 9 recuperas tus créditos.' },
+      { q: '¿Qué es una Predicción?', a: 'Una Predicción es un set de 10 preguntas sobre un evento deportivo. Pagas créditos para activarla y predices los resultados de cada pregunta. Si aciertas 10/10 compartes el pozo acumulado. Si aciertas 7, 8 o 9 recuperas tus créditos.' },
       { q: '¿Hasta cuándo puedo enviar mis predicciones?', a: 'El plazo de cierre se indica en cada evento. Generalmente cierran al inicio del primer partido del torneo. Una vez cerrado el plazo no podrás crear ni modificar predicciones.' },
       { q: '¿Puedo modificar mis predicciones después de enviarlas?', a: 'Sí, puedes editar tus predicciones mientras el evento esté abierto. Una vez cerrado el período de predicciones no se permiten cambios bajo ninguna circunstancia.' },
       { q: '¿Qué pasa si un partido se cancela o pospone?', a: 'Si un partido se cancela definitivamente, esa pregunta se declara nula y no cuenta ni como acierto ni como error. Si se pospone a una fecha cercana, el evento aguarda el resultado. Si la demora es mayor a 7 días se aplica la política de cancelación.' },
@@ -25,16 +25,16 @@ const FAQS = [
   {
     sec: '💳 Créditos y Pagos',
     items: [
-      { q: '¿Qué son los créditos?', a: 'Los créditos son la moneda interna de KickLast. 1 crédito equivale aproximadamente a 1 USD. Los usas para activar Gurús y hacer apuestas 1-X-2. Puedes recargar créditos desde la sección "Recargar" con distintos métodos de pago según tu país.' },
+      { q: '¿Qué son los créditos?', a: 'Los créditos son la moneda interna de KickLast. 1 crédito equivale aproximadamente a 1 USD. Los usas para activar Predicciones y hacer apuestas 1-X-2. Puedes recargar créditos desde la sección "Recargar" con distintos métodos de pago según tu país.' },
       { q: '¿Qué métodos de pago aceptan?', a: 'Aceptamos transferencia bancaria, Nequi, Daviplata, PSE, tarjeta de crédito/débito (Visa/MC) y pines de recarga. La disponibilidad varía por país. Todos los pagos se procesan en USD.' },
-      { q: '¿Los créditos de bienvenida tienen restricciones?', a: 'Los 10 créditos de bienvenida pueden usarse en cualquier Gurú activo. No son retirables directamente: primero debes cumplir los requisitos de juego (ganar el pozo acumulado, 3 gurús ganados o 3 apuestas ganadas).' },
+      { q: '¿Los créditos de bienvenida tienen restricciones?', a: 'Los 10 créditos de bienvenida pueden usarse en cualquier Predicción activa. No son retirables directamente: primero debes cumplir los requisitos de juego (ganar el pozo acumulado, 3 predicciones ganadas o 3 apuestas ganadas).' },
       { q: '¿Hay comisiones por recargar?', a: 'Las recargas directas no tienen comisión de plataforma. Algunos métodos de pago pueden tener cargos propios de la pasarela (generalmente 1-3%). El monto exacto se muestra antes de confirmar el pago.' },
     ],
   },
   {
     sec: '💸 Retiros',
     items: [
-      { q: '¿Cuáles son los requisitos para retirar?', a: 'Para solicitar un retiro debes: (1) tener mínimo $100 USD en créditos, y (2) cumplir al menos uno de estos criterios de juego: haber ganado el pozo acumulado, acumular 3 Gurús ganados, o acumular 3 apuestas ganadas. Este requisito existe para garantizar la integridad del sistema.' },
+      { q: '¿Cuáles son los requisitos para retirar?', a: 'Para solicitar un retiro debes: (1) tener mínimo $100 USD en créditos, y (2) cumplir al menos uno de estos criterios de juego: haber ganado el pozo acumulado, acumular 3 Predicciones ganadas, o acumular 3 apuestas ganadas. Este requisito existe para garantizar la integridad del sistema.' },
       { q: '¿Cuánto tiempo tardan los retiros?', a: 'Las solicitudes se procesan en 1-3 días hábiles. Transferencias bancarias internacionales pueden tomar hasta 5 días. Recibirás una notificación por email cuando tu retiro sea aprobado y enviado.' },
       { q: '¿Se cobran impuestos sobre los premios?', a: 'Sí. Según la legislación de tu país se aplica una retención en la fuente sobre las ganancias. Colombia: 19%, Ecuador: 15%, México: 16%, Argentina: 35%. Además, KickLast aplica una comisión de plataforma del 3%. Todo se muestra en el resumen antes de confirmar el retiro.' },
       { q: '¿Cuál es el monto mínimo de retiro?', a: 'El mínimo es de $100 USD en créditos. No hay un máximo establecido, aunque montos superiores a $5,000 USD pueden requerir verificación adicional de identidad (KYC).' },

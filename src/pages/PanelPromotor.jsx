@@ -810,7 +810,7 @@ function DashboardTab() {
 
   const eventosCols = [
     { key: '_nombre',   label: 'EVENTO',    sortable: true },
-    { key: '_gurus',    label: 'GURÚS',     sortable: true },
+    { key: '_gurus',    label: 'PREDICCIONES', sortable: true },
     { key: '_apuestas', label: 'APUESTAS',  sortable: true },
     { key: '_recargas', label: 'RECARGAS',  sortable: true },
     {

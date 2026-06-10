@@ -139,7 +139,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
       return;
     }
     if (saldo !== null && saldo < costoGuru) {
-      setError('Saldo insuficiente para comprar el gurú.');
+      setError('Saldo insuficiente para comprar la predicción.');
       return;
     }
     setSubmitting(true); setError('');
@@ -155,7 +155,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
       });
       await api.post('/predicciones', { eventoId: ev.id, selecciones });
       setSaldo(s => s !== null ? s - costoGuru : s);
-      setResult('¡Gurú Manual comprado! Recibirás notificación al correo y en la campanita 🔔.');
+      setResult('¡Predicción Manual comprada! Recibirás notificación al correo y en la campanita 🔔.');
     } catch (e) {
       const msg = e.response?.data?.message;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al crear predicción');
@@ -178,10 +178,10 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
         await api.post('/predicciones/automatica', body);
       }
       setSaldo(s => s !== null ? s - costoTotal : s);
-      setResult(`¡${cantidad > 1 ? cantidad + ' gurús comprados' : 'Gurú comprado'}! Recibirás notificación al correo y en la campanita 🔔.`);
+      setResult(`¡${cantidad > 1 ? cantidad + ' predicciones compradas' : 'Predicción comprada'}! Recibirás notificación al correo y en la campanita 🔔.`);
     } catch (e) {
       const msg = e.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al comprar gurú');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al comprar predicción');
     }
     setSubmitting(false);
   }
@@ -271,7 +271,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
                     💳 RECARGA REQUERIDA
                   </div>
                   <div style={{ marginBottom: 12, lineHeight: 1.5 }}>
-                    Los <strong>10 créditos de bienvenida</strong> solo se pueden usar en el modo 🧠 <strong>Gurú</strong>.<br />
+                    Los <strong>10 créditos de bienvenida</strong> solo se pueden usar en el modo 🧠 <strong>Predicción</strong>.<br />
                     Para apostar en cuotas necesitas recargar al menos <strong>$1</strong>.
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -281,7 +281,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
                     </a>
                     <button onClick={() => setMode('guru')}
                       style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, padding: '9px 18px', borderRadius: 6, border: '1px solid #8dc63f30', cursor: 'pointer', letterSpacing: '0.04em' }}>
-                      🧠 USAR CRÉDITOS EN GURÚ
+                      🧠 USAR CRÉDITOS EN PREDICCIÓN
                     </button>
                   </div>
                 </div>
@@ -310,7 +310,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
                   </button>
                 )}
                 <button style={S.tab(mode === 'guru')} onClick={() => setMode('guru')}>
-                  COMPRAR GURÚ
+                  COMPRAR PREDICCIÓN
                 </button>
               </div>
 
@@ -540,7 +540,7 @@ function GuruSection({
       {/* Costo info */}
       <div style={{ background: '#161e2e', border: '1px solid #8dc63f30', borderRadius: 8, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 4 }}>COSTO POR GURÚ</div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 4 }}>COSTO POR PREDICCIÓN</div>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: 700, color: '#8dc63f' }}>{costoGuru} CR</div>
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>= {costoGuru} vidas = ${costoGuru} USD · 10 predicciones</div>
         </div>
@@ -590,7 +590,7 @@ function GuruSection({
           {guruMode === 'AUTOMATICA' ? (
             /* ── AUTO ── */
             <>
-              <span style={S.label}>CANTIDAD DE GURÚS</span>
+              <span style={S.label}>CANTIDAD DE PREDICCIONES</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
                 <button onClick={() => setCantidad(c => Math.max(1, c - 1))}
                   style={{ background: '#1e2535', color: '#8dc63f', border: '1px solid #1e2a3a', borderRadius: 6, width: 38, height: 38, fontSize: 20, cursor: 'pointer', fontWeight: 700 }}>−</button>
@@ -618,7 +618,7 @@ function GuruSection({
               </div>
 
               <button onClick={onAuto} disabled={!canAuto} style={S.btn(!canAuto)}>
-                {submitting ? 'PROCESANDO...' : saldoInsuficiente ? 'SALDO INSUFICIENTE' : `COMPRAR ${cantidad > 1 ? cantidad + ' GURÚS' : 'GURÚ'} (${costoTotal} CR) →`}
+                {submitting ? 'PROCESANDO...' : saldoInsuficiente ? 'SALDO INSUFICIENTE' : `COMPRAR ${cantidad > 1 ? cantidad + ' PREDICCIONES' : 'PREDICCIÓN'} (${costoTotal} CR) →`}
               </button>
             </>
           ) : (

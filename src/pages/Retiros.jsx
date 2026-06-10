@@ -27,9 +27,9 @@ function RequisitosPanel({ req, onSolicitar }) {
       color: '#00d4ff',
     },
     {
-      label: '3 o más Gurús ganados',
+      label: '3 o más Predicciones ganadas',
       ok: req.gurus_ganados >= 3,
-      detail: `${req.gurus_ganados ?? 0} / 3 gurús ganados`,
+      detail: `${req.gurus_ganados ?? 0} / 3 predicciones ganadas`,
       color: '#8dc63f',
     },
     {
@@ -89,7 +89,7 @@ function RequisitosPanel({ req, onSolicitar }) {
         </div>
         {!cumpleJuego && (
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f59e0b', marginTop: 8, padding: '6px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 4 }}>
-            💡 Sigue participando en eventos Gurú o apostando para cumplir este requisito.
+            💡 Sigue participando en Predicciones o apostando para cumplir este requisito.
           </div>
         )}
       </div>
@@ -421,7 +421,7 @@ export default function Retiros() {
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 8 }}>MI CUENTA</div>
           <h1 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: 700, color: '#fff', margin: 0 }}>RETIROS</h1>
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d', marginTop: 6 }}>
-            Para retirar debes: ganar un acumulado, o ≥3 gurús, o ≥3 apuestas, y tener mínimo $100 USD.
+            Para retirar debes: ganar un acumulado, o ≥3 predicciones, o ≥3 apuestas, y tener mínimo $100 USD.
           </div>
         </div>
 

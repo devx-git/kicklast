@@ -75,13 +75,13 @@ function PreguntasGuruPanel({ partido, onResuelto }) {
 
   if (loading) return (
     <div style={{ padding: '14px 0 4px', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, textAlign: 'center' }}>
-      Cargando preguntas Gurú...
+      Cargando predicciones...
     </div>
   );
 
   if (predicciones.length === 0) return (
     <div style={{ padding: '14px 0 4px', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 12, textAlign: 'center' }}>
-      Este partido no tiene preguntas Gurú asociadas.
+      Este partido no tiene predicciones asociadas.
     </div>
   );
 
@@ -93,7 +93,7 @@ function PreguntasGuruPanel({ partido, onResuelto }) {
       {/* Header del panel */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '0.1em' }}>
-          PREGUNTAS GURÚ — {predicciones.length} total
+          PREDICCIONES — {predicciones.length} total
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <span style={{ background: 'rgba(141,198,63,0.1)', color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 10, padding: '3px 10px', borderRadius: 4 }}>
@@ -368,7 +368,7 @@ function PartidoRow({ partido, onSaved }) {
               fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
               padding: '8px 14px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em',
             }}>
-            {showGuru ? '▲ GURÚS' : '▼ GURÚS'}
+            {showGuru ? '▲ PREDICCIONES' : '▼ PREDICCIONES'}
           </button>
         </div>
       </div>
@@ -582,7 +582,7 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
 
           {/* Leyenda de la sección Gurú */}
           <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid #a78bfa20', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#a78bfa', lineHeight: 1.5 }}>
-            💡 Haz clic en <strong>▼ GURÚS</strong> en cada partido para ver y marcar las respuestas correctas de cada pregunta.
+            💡 Haz clic en <strong>▼ PREDICCIONES</strong> en cada partido para ver y marcar las respuestas correctas de cada pregunta.
             Esto permite comparar con las predicciones de los usuarios y determinar aciertos.
           </div>
 

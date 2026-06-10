@@ -32,9 +32,9 @@ function fmtFecha(f) {
 }
 
 const TIPO_OPS = [
-  { val: 'GURU',    label: '🎯 GURÚ',    desc: 'Solo preguntas Gurú',      color: '#a78bfa' },
+  { val: 'GURU',    label: '🎯 PREDICCIÓN',    desc: 'Solo preguntas de Predicción', color: '#a78bfa' },
   { val: 'APUESTA', label: '🎲 APUESTA', desc: 'Solo apuestas 1 · X · 2',  color: '#f59e0b' },
-  { val: 'AMBOS',   label: '⚡ AMBOS',   desc: 'Gurú + Apuestas',          color: '#8dc63f' },
+  { val: 'AMBOS',   label: '⚡ AMBOS',   desc: 'Predicción + Apuestas',    color: '#8dc63f' },
 ];
 
 const VIS_OPS = [
@@ -389,7 +389,7 @@ export default function EventoPartidosManager({ eventoId, eventoNombre, onClose 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
           {[
             { label: 'TOTAL',    val: resumen.total,   color: '#6b7a8d' },
-            { label: 'GURÚ',     val: resumen.guru,    color: '#a78bfa' },
+            { label: 'PREDICCIÓN', val: resumen.guru,    color: '#a78bfa' },
             { label: 'APUESTA',  val: resumen.apuesta, color: '#f59e0b' },
             { label: 'AMBOS',    val: resumen.ambos,   color: '#8dc63f' },
             { label: 'PÚBLICOS', val: resumen.publicos, color: '#00d4ff' },
@@ -442,7 +442,7 @@ export default function EventoPartidosManager({ eventoId, eventoNombre, onClose 
 
         {/* Info */}
         <div style={{ marginTop: 20, background: 'rgba(141,198,63,0.05)', border: '1px solid #8dc63f20', borderRadius: 6, padding: '12px 14px', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', lineHeight: 1.7 }}>
-          <strong style={{ color: '#8dc63f' }}>⚡ AMBOS</strong> — El partido tiene preguntas Gurú <em>y</em> apuestas 1·X·2. Las cuotas se multiplican por el monto apostado.<br />
+          <strong style={{ color: '#8dc63f' }}>⚡ AMBOS</strong> — El partido tiene preguntas de Predicción <em>y</em> apuestas 1·X·2. Las cuotas se multiplican por el monto apostado.<br />
           <strong style={{ color: '#a78bfa' }}>👑 VIP</strong> — Solo los usuarios con membresía activa pueden ver y participar en este partido.<br />
           <strong style={{ color: '#f59e0b' }}>🔒 PRIVADO</strong> — No aparece en el listado público; solo accesible con enlace directo.
         </div>

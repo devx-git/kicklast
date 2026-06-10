@@ -38,7 +38,7 @@ export default function Cards() {
     <section id="eventos" className="py-20 px-4">
       <div className="container mx-auto">
         <h2 className="text-4xl font-bold text-center mb-4">Eventos disponibles 🔥</h2>
-        <p className="text-gray-400 text-center mb-12">Compra Gurús y comienza a ganar</p>
+        <p className="text-gray-400 text-center mb-12">Compra Predicciones y comienza a ganar</p>
 
         {loading ? (
           <div className="text-center py-12 text-gray-400">Cargando...</div>

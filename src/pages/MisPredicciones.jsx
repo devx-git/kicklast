@@ -56,9 +56,9 @@ export default function MisPredicciones() {
         {!loading && preds.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 28 }}>
             {[
-              { label: 'TOTAL GURÚS',    val: stats.total,                    color: '#6b7a8d' },
-              { label: 'PRED. CORRECTAS', val: stats.correctas,               color: '#8dc63f' },
-              { label: 'GURÚS GANADOS',  val: stats.ganadas,                  color: '#f59e0b' },
+              { label: 'TOTAL PRED.',       val: stats.total,                    color: '#6b7a8d' },
+              { label: 'PRED. CORRECTAS',  val: stats.correctas,               color: '#8dc63f' },
+              { label: 'PRED. GANADAS',    val: stats.ganadas,                  color: '#f59e0b' },
               { label: 'GANANCIAS CR',   val: formatCreditos(stats.ganancias), color: '#a78bfa' },
             ].map(s => (
               <div key={s.label} style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px' }}>
@@ -104,7 +104,7 @@ function PredRow({ p, expanded, onToggle }) {
   const fecha    = p.creado_en
     ? new Date(p.creado_en).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
-  const tipo     = p.tipo || (detalles.length > 0 ? 'GURÚ' : 'SIMPLE');
+  const tipo     = p.tipo || (detalles.length > 0 ? 'PREDICCIÓN' : 'SIMPLE');
   const isGuru   = detalles.length > 0;
   const aciertos = detalles.filter(d => d.es_acierto).length;
   const total    = detalles.length;

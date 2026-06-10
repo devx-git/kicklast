@@ -109,7 +109,18 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
                           setNotifs(ns => ns.map(x => x.id === n.id ? { ...x, leida: true } : x));
                         }
                       }}
-                      style={{ padding: '10px 16px', borderBottom: '1px solid #111827', cursor: 'pointer', background: n.leida ? 'transparent' : 'rgba(141,198,63,0.04)' }}>
+                      style={{ position: 'relative', padding: '10px 36px 10px 16px', borderBottom: '1px solid #111827', cursor: 'pointer', background: n.leida ? 'transparent' : 'rgba(141,198,63,0.04)' }}>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          api.delete(`/notificaciones/${n.id}`).catch(() => {});
+                          setNotifs(ns => ns.filter(x => x.id !== n.id));
+                        }}
+                        style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: '#4a5568', fontSize: 13, cursor: 'pointer', lineHeight: 1, padding: '2px 4px', borderRadius: 3, transition: 'color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#4a5568'}
+                        title="Eliminar notificación"
+                      >✕</button>
                       <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: n.leida ? '#6b7a8d' : '#c0cad8', marginBottom: 2, fontWeight: n.leida ? 400 : 600 }}>
                         {n.titulo || n.message || ''}
                       </div>

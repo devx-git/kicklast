@@ -55,7 +55,7 @@ function buildTicketHTML(datos) {
       <div class="code-box">${datos.codigo || '—'}</div>
       ${sep}
       ${row('Valor:', `${Number(datos.creditos).toLocaleString('es-CO')} créditos`)}
-      ${row('Equivale:', `${creditosAVidas(Number(datos.creditos))} vidas Gurú`)}
+      ${row('Equivale:', `${creditosAVidas(Number(datos.creditos))} vidas`)}
       ${row('Precio aprox.:', `$${Number(datos.creditos).toLocaleString('es-CO')} USD`)}
       ${sep}
       ${row('Comprador:', datos.vendido_a || 'No especificado')}
@@ -217,7 +217,7 @@ export default function ComprobanteTicket({ datos, onClose }) {
                 {datos.codigo || '—'}
               </div>
               <TR l="Valor:"   v={`${Number(datos.creditos).toLocaleString('es-CO')} créditos`} bold />
-              <TR l="Vidas:"   v={`${creditosAVidas(Number(datos.creditos))} vidas Gurú`} />
+              <TR l="Vidas:"   v={`${creditosAVidas(Number(datos.creditos))} vidas`} />
               <TR l="Precio:"  v={`$${Number(datos.creditos).toLocaleString('es-CO')} USD aprox.`} />
             </>}
 

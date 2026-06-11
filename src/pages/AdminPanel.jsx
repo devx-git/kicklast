@@ -499,6 +499,17 @@ function EventosAdminTab() {
     finally { setActioning(null); }
   };
 
+  const eliminar = async (id, nombre) => {
+    if (!window.confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    setActioning(id + 'd');
+    try {
+      await api.delete(`/eventos/${id}`);
+      setMsg(`✓ Evento "${nombre}" eliminado`);
+      cargar();
+    } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al eliminar'}`); }
+    finally { setActioning(null); }
+  };
+
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando eventos...</div>;
 
   const ESTADO_COLOR = { ACTIVO: '#8dc63f', CERRADO: '#f59e0b', LIQUIDADO: '#a78bfa', CANCELADO: '#f87171' };
@@ -550,6 +561,9 @@ function EventosAdminTab() {
           )}
           {row.cerrado && row._estado !== 'LIQUIDADO' && (
             <button onClick={() => liquidar(row.id)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>LIQUIDAR</button>
+          )}
+          {row._estado !== 'LIQUIDADO' && (
+            <button onClick={() => eliminar(row.id, row._nombre)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>🗑 BORRAR</button>
           )}
         </div>
       ),

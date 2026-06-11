@@ -454,14 +454,23 @@ function PartidoRow({ partido, onSaved }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function PartidosResultadosTab({ isAdmin = false }) {
-  const [eventos, setEventos]           = useState([]);
-  const [eventoId, setEventoId]         = useState('');
-  const [partidos, setPartidos]         = useState([]);
-  const [loadingEv, setLoadingEv]       = useState(true);
-  const [loadingPt, setLoadingPt]       = useState(false);
-  const [syncMsg, setSyncMsg]           = useState('');
-  const [syncing, setSyncing]           = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState('TODOS');
+  const [eventos, setEventos]             = useState([]);
+  const [eventoId, setEventoId]           = useState('');
+  const [eventoInfo, setEventoInfo]       = useState(null);
+  const [partidos, setPartidos]           = useState([]);
+  const [loadingEv, setLoadingEv]         = useState(true);
+  const [loadingPt, setLoadingPt]         = useState(false);
+  const [syncMsg, setSyncMsg]             = useState('');
+  const [syncing, setSyncing]             = useState(false);
+  const [filtroEstado, setFiltroEstado]   = useState('TODOS');
+  const [stats, setStats]                 = useState(null);
+  const [apuestas, setApuestas]           = useState({ resumen: null, apuestas: [] });
+  const [showApuestas, setShowApuestas]   = useState(false);
+  const [loadingApuestas, setLoadingApuestas] = useState(false);
+  const [showModal, setShowModal]         = useState('');
+  const [modalData, setModalData]         = useState(null);
+  const [flujomsg, setFlujomsg]           = useState('');
+  const [flujoaccion, setFlujoaccion]     = useState('');
 
   const cargarEventos = useCallback(() => {
     setLoadingEv(true);
@@ -478,28 +487,66 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
     if (!id) return;
     setLoadingPt(true);
     api.get(`/eventos/${id}`)
-      .then(r => setPartidos(r.data?.partidos || []))
+      .then(r => { setPartidos(r.data?.partidos || []); setEventoInfo(r.data); })
       .catch(() => setPartidos([]))
       .finally(() => setLoadingPt(false));
   }, []);
 
+  const cargarStats = useCallback((id) => {
+    if (!id) return;
+    api.get(`/motor/evento/${id}/estadisticas`)
+      .then(r => setStats(r.data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
-    if (eventoId) cargarPartidos(eventoId);
-    else setPartidos([]);
-  }, [eventoId, cargarPartidos]);
+    if (eventoId) { cargarPartidos(eventoId); cargarStats(eventoId); }
+    else { setPartidos([]); setEventoInfo(null); setStats(null); setApuestas({ resumen: null, apuestas: [] }); setShowApuestas(false); setFlujomsg(''); }
+  }, [eventoId, cargarPartidos, cargarStats]);
+
+  const cargarApuestas = async (id) => {
+    setLoadingApuestas(true);
+    try {
+      const { data } = await api.get(`/apuestas/admin/evento/${id}`);
+      setApuestas(data);
+    } catch {}
+    finally { setLoadingApuestas(false); }
+  };
 
   const sincronizarApi = async (force = false) => {
     if (!eventoId) return;
     setSyncing(true); setSyncMsg('');
     try {
       const { data } = await api.post('/sports/sync-partidos', { evento_id: eventoId, force });
-      // Usar el mensaje descriptivo que devuelve el backend
       setSyncMsg(data.mensaje || `✓ Sync completado — ${data.sincronizados ?? 0} partido(s) actualizados`);
       cargarPartidos(eventoId);
     } catch (e) {
       const m = e.response?.data?.message;
       setSyncMsg('⚠ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al sincronizar'));
     } finally { setSyncing(false); }
+  };
+
+  const accionFlujo = async (tipo) => {
+    setFlujoaccion(tipo); setFlujomsg('');
+    try {
+      if (tipo === 'cerrar') {
+        await api.post(`/eventos/${eventoId}/cerrar-inscripciones`);
+        setFlujomsg('✓ Inscripciones cerradas. Ya no se aceptan nuevas predicciones.');
+        cargarPartidos(eventoId);
+      } else if (tipo === 'preview') {
+        const { data } = await api.get(`/eventos/${eventoId}/liquidacion/preview`);
+        setModalData(data); setShowModal('preview');
+      } else if (tipo === 'liquidar') {
+        if (!window.confirm('¿Liquidar el evento? Los créditos se distribuirán a los ganadores. Esta acción es irreversible.')) return;
+        await api.post(`/eventos/${eventoId}/resolver`);
+        setFlujomsg('✓ Evento liquidado. Los premios fueron acreditados en las wallets de los ganadores.');
+        cargarPartidos(eventoId); cargarStats(eventoId);
+      } else if (tipo === 'reporte') {
+        const { data } = await api.get(`/eventos/${eventoId}/liquidacion/reporte`);
+        setModalData(data); setShowModal('reporte');
+      }
+    } catch (e) { setFlujomsg('✗ ' + (e.response?.data?.message || 'Error')); }
+    finally { setFlujoaccion(''); }
   };
 
   const partidosFiltrados = partidos.filter(p =>
@@ -512,6 +559,10 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
     sinRes: partidos.filter(p => p.resultado_local === null  || p.resultado_local === undefined).length,
     conApi: partidos.filter(p => p.api_id).length,
   };
+
+  const todosMarcados = resumen.total > 0 && resumen.sinRes === 0;
+  const esLiquidado   = eventoInfo?.estado === 'LIQUIDADO';
+  const estaCerrado   = eventoInfo?.cerrado;
 
   return (
     <div>
@@ -545,7 +596,7 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
                 {[
                   { label: 'Total',         val: resumen.total,  color: '#6b7a8d' },
                   { label: 'Con marcador',  val: resumen.conRes, color: '#8dc63f' },
-                  { label: 'Sin marcador',  val: resumen.sinRes, color: '#f59e0b' },
+                  { label: 'Sin marcador',  val: resumen.sinRes, color: resumen.sinRes > 0 ? '#f59e0b' : '#4a5568' },
                   { label: 'Vía API',       val: resumen.conApi, color: '#3b82f6' },
                 ].map(s => (
                   <div key={s.label} style={{ textAlign: 'center' }}>
@@ -561,7 +612,6 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
                 title="Sincroniza solo los partidos PROGRAMADO con api_id">
                 {syncing ? '↻ SINCRONIZANDO...' : '🔄 SYNC API'}
               </button>
-              {/* Force sync: re-sincroniza incluso los FINALIZADO (corregir resultados manuales) */}
               <button onClick={() => sincronizarApi(true)} disabled={syncing || resumen.conApi === 0}
                 style={{ background: syncing ? '#1e2535' : 'rgba(245,158,11,0.1)', color: syncing ? '#4a5568' : '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #f59e0b30', cursor: (syncing || resumen.conApi === 0) ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}
                 title="Force: re-sincroniza todos los partidos con api_id, incluyendo FINALIZADO">
@@ -612,6 +662,242 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Estadísticas del evento ─────────────────────────────── */}
+      {eventoId && stats && (
+        <div style={{ ...CARD, marginTop: 16 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.1em', marginBottom: 16 }}>
+            📊 ESTADÍSTICAS DEL EVENTO
+          </div>
+          <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            {/* Predicciones Gurú */}
+            <div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#a78bfa', letterSpacing: '0.08em', marginBottom: 10 }}>PREDICCIONES GURÚ</div>
+              <div style={{ display: 'flex', gap: 20 }}>
+                {[
+                  { label: 'Usuarios',   val: stats.ranking_predicciones.length,                                          color: '#6b7a8d' },
+                  { label: 'Resueltas',  val: stats.ranking_predicciones.filter(p => p.estado !== 'PENDIENTE').length,    color: '#8dc63f' },
+                  { label: 'Pendientes', val: stats.ranking_predicciones.filter(p => p.estado === 'PENDIENTE').length,    color: '#f59e0b' },
+                ].map(s => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: 700, color: s.color }}>{s.val}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ width: 1, background: '#1e2a3a', alignSelf: 'stretch' }} />
+
+            {/* Apuestas 1-X-2 */}
+            <div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#f59e0b', letterSpacing: '0.08em', marginBottom: 10 }}>APUESTAS 1-X-2</div>
+              <div style={{ display: 'flex', gap: 20 }}>
+                {[
+                  { label: 'Total',      val: stats.resumen_apuestas.total,      color: '#6b7a8d' },
+                  { label: 'Pendientes', val: stats.resumen_apuestas.pendientes,  color: '#f59e0b' },
+                  { label: 'Ganadas',    val: stats.resumen_apuestas.ganadoras,   color: '#8dc63f' },
+                  { label: 'Perdidas',   val: stats.resumen_apuestas.perdedoras,  color: '#f87171' },
+                ].map(s => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: 700, color: s.color }}>{s.val}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
+                {[['1','Local','#3b82f6'],['X','Empate','#f59e0b'],['2','Visit.','#f87171']].map(([k,l,c]) => (
+                  <span key={k} style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d' }}>
+                    {l}: <b style={{ color: c }}>{stats.resumen_apuestas.por_resultado[k] || 0}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {stats.top_3.length > 0 && (
+              <>
+                <div style={{ width: 1, background: '#1e2a3a', alignSelf: 'stretch' }} />
+                <div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#a78bfa', letterSpacing: '0.08em', marginBottom: 10 }}>TOP 3 PREDICTORES</div>
+                  {stats.top_3.map((t, i) => (
+                    <div key={t.posicion} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: ['#f59e0b','#9ca3af','#b45309'][i], minWidth: 20 }}>#{t.posicion}</span>
+                      <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#e2e8f0' }}>{t.usuario?.nombre || t.usuario?.email || '—'}</span>
+                      <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f' }}>{t.aciertos} ✓</span>
+                      <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, padding: '2px 6px', borderRadius: 3, background: t.estado === 'PENDIENTE' ? 'rgba(245,158,11,0.15)' : 'rgba(141,198,63,0.12)', color: t.estado === 'PENDIENTE' ? '#f59e0b' : '#8dc63f' }}>{t.estado}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Apuestas del evento ─────────────────────────────────── */}
+      {eventoId && (
+        <div style={{ ...CARD, marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#f59e0b', letterSpacing: '0.1em' }}>
+              💰 APUESTAS DEL EVENTO
+              {apuestas.resumen && <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginLeft: 10, fontWeight: 400 }}>({apuestas.resumen.total} total · {Number(apuestas.resumen.monto_total).toLocaleString('es-CO')} cr apostados)</span>}
+            </div>
+            <button
+              onClick={() => {
+                const next = !showApuestas;
+                setShowApuestas(next);
+                if (next && !apuestas.resumen) cargarApuestas(eventoId);
+              }}
+              style={{ background: showApuestas ? 'rgba(245,158,11,0.12)' : '#1e2535', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '7px 14px', borderRadius: 6, border: '1px solid #f59e0b30', cursor: 'pointer' }}>
+              {showApuestas ? '▲ OCULTAR' : '▼ VER APUESTAS'}
+            </button>
+          </div>
+
+          {showApuestas && (
+            <div style={{ marginTop: 16 }}>
+              {loadingApuestas ? (
+                <div style={{ textAlign: 'center', color: '#4a5568', padding: 20, fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Cargando apuestas...</div>
+              ) : apuestas.apuestas.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#4a5568', padding: 24, fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>No hay apuestas registradas en este evento.</div>
+              ) : (
+                <>
+                  {apuestas.resumen && (
+                    <div style={{ display: 'flex', gap: 20, marginBottom: 14, flexWrap: 'wrap', padding: '10px 14px', background: '#0a0d14', borderRadius: 6 }}>
+                      {[['Local (1)', apuestas.resumen.por_resultado['1'], '#3b82f6'], ['Empate (X)', apuestas.resumen.por_resultado['X'], '#f59e0b'], ['Visitante (2)', apuestas.resumen.por_resultado['2'], '#f87171']].map(([l,v,c]) => (
+                        <span key={l} style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>{l}: <b style={{ color: c }}>{v}</b></span>
+                      ))}
+                      <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>Ganancia potencial total: <b style={{ color: '#f59e0b' }}>{Number(apuestas.resumen.ganancia_potencial_total).toLocaleString('es-CO')} cr</b></span>
+                    </div>
+                  )}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #1e2a3a' }}>
+                          {['USUARIO','RESULTADO','CUOTA','MONTO','GANANCIA POT.','ESTADO'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 10px', color: '#4a5568', fontFamily: 'Oswald, sans-serif', fontSize: 10, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apuestas.apuestas.map(a => (
+                          <tr key={a.id} style={{ borderBottom: '1px solid #0a0d14' }}>
+                            <td style={{ padding: '8px 10px', color: '#e2e8f0' }}>{a.usuario?.nombre || a.usuario?.email || '—'}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, color: a.resultado_elegido === '1' ? '#3b82f6' : a.resultado_elegido === 'X' ? '#f59e0b' : '#f87171' }}>
+                                {a.resultado_elegido === '1' ? '🏠 Local' : a.resultado_elegido === 'X' ? '🤝 Empate' : '✈ Visit.'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 12 }}>{Number(a.cuota_al_apostar).toFixed(2)}x</td>
+                            <td style={{ padding: '8px 10px', color: '#e2e8f0' }}>{Number(a.monto_creditos).toLocaleString('es-CO')} cr</td>
+                            <td style={{ padding: '8px 10px', color: '#f59e0b' }}>{Number(a.ganancia_potencial).toLocaleString('es-CO')} cr</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: {PENDIENTE:'rgba(245,158,11,0.15)',GANADA:'rgba(141,198,63,0.12)',PERDIDA:'rgba(248,113,113,0.1)',REEMBOLSADA:'rgba(107,122,141,0.15)'}[a.estado]||'#0a0d14', color: {PENDIENTE:'#f59e0b',GANADA:'#8dc63f',PERDIDA:'#f87171',REEMBOLSADA:'#6b7a8d'}[a.estado]||'#6b7a8d' }}>
+                                {a.estado}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Flujo de Cierre ─────────────────────────────────────── */}
+      {eventoId && eventoInfo && (
+        <div style={{ ...CARD, marginTop: 16 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.1em', marginBottom: 20 }}>
+            ⚡ FLUJO DE CIERRE DEL EVENTO
+          </div>
+
+          {/* Steps */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, marginBottom: 24, flexWrap: 'wrap' }}>
+            {[
+              { n: 1, label: 'Todos los marcadores ingresados',   done: todosMarcados,  act: !todosMarcados && resumen.total > 0 },
+              { n: 2, label: 'Inscripciones cerradas',            done: estaCerrado,    act: todosMarcados && !estaCerrado },
+              { n: 3, label: 'Evento liquidado',                  done: esLiquidado,    act: estaCerrado && !esLiquidado },
+              { n: 4, label: 'Listo para eliminar',               done: esLiquidado,    act: false },
+            ].map((s, i) => (
+              <div key={s.n} style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, background: s.done ? 'rgba(141,198,63,0.15)' : s.act ? 'rgba(245,158,11,0.15)' : '#0a0d14', color: s.done ? '#8dc63f' : s.act ? '#f59e0b' : '#4a5568', border: `2px solid ${s.done ? '#8dc63f50' : s.act ? '#f59e0b50' : '#1e2a3a'}` }}>
+                    {s.done ? '✓' : s.n}
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: s.done ? '#8dc63f' : s.act ? '#f59e0b' : '#4a5568', textAlign: 'center', marginTop: 6, maxWidth: 100, lineHeight: 1.3 }}>{s.label}</div>
+                </div>
+                {i < 3 && <div style={{ width: 40, height: 2, background: s.done ? '#8dc63f30' : '#1e2a3a', margin: '0 4px 28px' }} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Botones de acción */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => accionFlujo('cerrar')}
+              disabled={!!flujoaccion || estaCerrado || esLiquidado}
+              title="Cierra inscripciones: los usuarios ya no pueden participar"
+              style={{ background: estaCerrado ? '#0a0d14' : 'rgba(245,158,11,0.1)', color: estaCerrado ? '#4a5568' : '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: `1px solid ${estaCerrado ? '#1e2a3a' : '#f59e0b40'}`, cursor: (estaCerrado || esLiquidado) ? 'not-allowed' : 'pointer' }}>
+              {flujoaccion === 'cerrar' ? '...' : estaCerrado ? '✓ INSCRIPCIONES CERRADAS' : '🔒 CERRAR INSCRIPCIONES'}
+            </button>
+
+            <button
+              onClick={() => accionFlujo('preview')}
+              disabled={!!flujoaccion || !estaCerrado}
+              title="Ver distribución de premios antes de ejecutar la liquidación"
+              style={{ background: !estaCerrado ? '#0a0d14' : 'rgba(59,130,246,0.1)', color: !estaCerrado ? '#4a5568' : '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: `1px solid ${!estaCerrado ? '#1e2a3a' : '#3b82f640'}`, cursor: !estaCerrado ? 'not-allowed' : 'pointer' }}>
+              {flujoaccion === 'preview' ? '...' : '👁 PREVIEW LIQUIDACIÓN'}
+            </button>
+
+            <button
+              onClick={() => accionFlujo('liquidar')}
+              disabled={!!flujoaccion || !estaCerrado || esLiquidado}
+              title="Distribuye premios a los ganadores. Irreversible."
+              style={{ background: (!estaCerrado || esLiquidado) ? '#0a0d14' : 'rgba(248,113,113,0.1)', color: (!estaCerrado || esLiquidado) ? '#4a5568' : '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: `1px solid ${(!estaCerrado || esLiquidado) ? '#1e2a3a' : '#f8717140'}`, cursor: (!estaCerrado || esLiquidado) ? 'not-allowed' : 'pointer' }}>
+              {flujoaccion === 'liquidar' ? 'LIQUIDANDO...' : esLiquidado ? '✓ EVENTO LIQUIDADO' : '💸 LIQUIDAR EVENTO'}
+            </button>
+
+            {estaCerrado && (
+              <button
+                onClick={() => accionFlujo('reporte')}
+                disabled={!!flujoaccion}
+                title="Ver reporte de la liquidación"
+                style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '10px 18px', borderRadius: 6, border: '1px solid #8dc63f30', cursor: 'pointer' }}>
+                {flujoaccion === 'reporte' ? '...' : '📊 VER REPORTE'}
+              </button>
+            )}
+          </div>
+
+          {flujomsg && (
+            <div style={{ marginTop: 14, background: flujomsg.startsWith('✓') ? 'rgba(141,198,63,0.08)' : 'rgba(248,113,113,0.1)', border: `1px solid ${flujomsg.startsWith('✓') ? '#8dc63f30' : '#f8717130'}`, borderRadius: 6, padding: '10px 14px', fontFamily: 'Roboto, sans-serif', fontSize: 13, color: flujomsg.startsWith('✓') ? '#8dc63f' : '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{flujomsg}</span>
+              <button onClick={() => setFlujomsg('')} style={{ background: 'none', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Modal Preview / Reporte ─────────────────────────────── */}
+      {showModal && modalData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => setShowModal('')}>
+          <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 12, maxWidth: 640, width: '100%', maxHeight: '80vh', overflowY: 'auto', padding: 28 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, color: '#8dc63f', letterSpacing: '0.1em' }}>
+                {showModal === 'preview' ? '👁 PREVIEW LIQUIDACIÓN' : '📊 REPORTE DE LIQUIDACIÓN'}
+              </div>
+              <button onClick={() => setShowModal('')} style={{ background: 'none', border: 'none', color: '#6b7a8d', cursor: 'pointer', fontSize: 22 }}>×</button>
+            </div>
+            <pre style={{ fontFamily: '"Roboto Mono", monospace', fontSize: 11, color: '#e2e8f0', overflowX: 'auto', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {JSON.stringify(modalData, null, 2)}
+            </pre>
+          </div>
         </div>
       )}
 

@@ -445,7 +445,6 @@ function PartidoRow({ partido, onSaved }) {
       {showGuru && (
         <PreguntasGuruPanel
           partido={partido}
-          onResuelto={onSaved}
         />
       )}
     </div>

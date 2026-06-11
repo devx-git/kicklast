@@ -104,8 +104,17 @@ export default function Recargar() {
         </div>
       </div>
 
+      <style>{`
+        .rg-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:28px;align-items:start;max-width:980px;margin:0 auto;padding:32px 20px 60px}
+        @media(max-width:720px){
+          .rg-grid{grid-template-columns:1fr;padding:16px 14px 60px;gap:18px}
+          .rg-sidebar{order:-1;position:static!important}
+          .rg-pais-rate{display:none}
+        }
+      `}</style>
+
       {/* ── Contenido ────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 20px 60px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', gap: 28, alignItems: 'start' }}>
+      <div className="rg-grid">
 
         {/* ── Columna izquierda ──────────────────────────────────────────── */}
         <div>
@@ -121,7 +130,7 @@ export default function Recargar() {
                   <span style={{ fontSize: 20 }}>{paisObj.flag}</span>
                   <span style={{ fontWeight: 600 }}>{paisObj.label}</span>
                   <span style={{ background: '#1e2a3a', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#8dc63f', fontFamily: 'Oswald, sans-serif', letterSpacing: '0.06em' }}>{moneda}</span>
-                  <span style={{ color: '#6b7a8d', fontSize: 12 }}>1 PX = {precioLocal(1, moneda)}</span>
+                  <span className="rg-pais-rate" style={{ color: '#6b7a8d', fontSize: 12 }}>1 PX = {precioLocal(1, moneda)}</span>
                 </span>
                 <span style={{ color: '#6b7a8d', fontSize: 12 }}>{paisAbierto ? '▲' : '▼'}</span>
               </button>
@@ -196,7 +205,7 @@ export default function Recargar() {
         </div>
 
         {/* ── Columna derecha: resumen ───────────────────────────────────── */}
-        <div style={{ position: 'sticky', top: 20 }}>
+        <div className="rg-sidebar" style={{ position: 'sticky', top: 20 }}>
 
           {/* Card resumen */}
           <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 12, padding: '20px 18px', marginBottom: 14 }}>

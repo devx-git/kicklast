@@ -43,7 +43,7 @@ function Pasos({ actual }) {
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: done ? '#8dc63f' : curr ? '#8dc63f' : '#1e2535', border: `2px solid ${done || curr ? '#8dc63f' : '#1e2a3a'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, color: done || curr ? '#0a0d14' : '#4a5568', transition: 'all 0.3s' }}>
                 {done ? '✓' : num}
               </div>
-              <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, color: curr ? '#8dc63f' : done ? '#8dc63f' : '#4a5568', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{p.toUpperCase()}</span>
+              <span className="ck-step-label" style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, color: curr ? '#8dc63f' : done ? '#8dc63f' : '#4a5568', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{p.toUpperCase()}</span>
             </div>
             {i < pasos.length - 1 && (
               <div style={{ flex: 1, height: 1, background: done ? '#8dc63f' : '#1e2a3a', margin: '0 12px', transition: 'background 0.3s' }} />
@@ -193,7 +193,16 @@ export default function Checkout() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 20px 60px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 260px', gap: 28, alignItems: 'start' }}>
+      <style>{`
+        .ck-grid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:28px;align-items:start;max-width:860px;margin:0 auto;padding:32px 20px 60px}
+        @media(max-width:720px){
+          .ck-grid{grid-template-columns:1fr;padding:16px 14px 60px;gap:16px}
+          .ck-sidebar{order:-1;position:static!important}
+          .ck-step-label{display:none}
+        }
+      `}</style>
+
+      <div className="ck-grid">
 
         {/* ── Panel central ──────────────────────────────────────────────── */}
         <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 14, padding: '28px 24px' }}>
@@ -377,7 +386,7 @@ export default function Checkout() {
         </div>
 
         {/* ── Sidebar resumen ───────────────────────────────────────────────── */}
-        <div style={{ position: 'sticky', top: 20 }}>
+        <div className="ck-sidebar" style={{ position: 'sticky', top: 20 }}>
           <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 12, padding: '18px 16px', marginBottom: 14 }}>
             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 14 }}>CONFIRMACIÓN DE COMPRA</div>
 

@@ -573,6 +573,170 @@ function fmtBytes(b) {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// ─── RECARGAS MANUALES ADMIN ───────────────────────────────────────────────
+function RecargasManualesTab() {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [filtro,      setFiltro]      = useState('PENDIENTE');
+  const [procesando,  setProcesando]  = useState(null);
+  const [rechazandoId, setRechazandoId] = useState(null);
+  const [notasRec,    setNotasRec]    = useState('');
+  const [msg,         setMsg]         = useState('');
+
+  const ESTADO_COLOR = { PENDIENTE: '#f59e0b', APROBADA: '#8dc63f', RECHAZADA: '#f87171' };
+  const UPLOADS_BASE_ADMIN = import.meta.env.VITE_UPLOADS_BASE || '';
+
+  const cargar = () => {
+    setLoading(true);
+    const q = filtro !== 'todas' ? `?estado=${filtro}` : '';
+    api.get(`/recargas-manual/admin/solicitudes${q}`)
+      .then(r => setSolicitudes(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setSolicitudes([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, [filtro]);
+
+  const aprobar = async (id) => {
+    if (!window.confirm('¿Aprobar esta recarga?')) return;
+    setProcesando(id);
+    try {
+      await api.patch(`/recargas-manual/admin/solicitudes/${id}/aprobar`);
+      setMsg('✓ Recarga aprobada — créditos acreditados');
+      cargar();
+    } catch (e) {
+      setMsg('Error: ' + (e.response?.data?.message || 'No se pudo aprobar'));
+    } finally { setProcesando(null); }
+  };
+
+  const rechazar = async (id) => {
+    setProcesando(id);
+    try {
+      await api.patch(`/recargas-manual/admin/solicitudes/${id}/rechazar`, { notas_admin: notasRec });
+      setMsg('Solicitud rechazada');
+      setRechazandoId(null); setNotasRec('');
+      cargar();
+    } catch (e) {
+      setMsg('Error: ' + (e.response?.data?.message || 'No se pudo rechazar'));
+    } finally { setProcesando(null); }
+  };
+
+  const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE').length;
+
+  return (
+    <div>
+      {msg && (
+        <div style={{ background: msg.startsWith('Error') ? '#1a0808' : '#0f1a0f', border: `1px solid ${msg.startsWith('Error') ? '#f8717140' : '#8dc63f40'}`, color: msg.startsWith('Error') ? '#f87171' : '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13, borderRadius: 6, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {msg} <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        {[['PENDIENTE', `Pendientes${pendientes > 0 ? ` (${pendientes})` : ''}`], ['APROBADA', 'Aprobadas'], ['RECHAZADA', 'Rechazadas'], ['todas', 'Todas']].map(([v, l]) => (
+          <button key={v} onClick={() => setFiltro(v)}
+            style={{ background: filtro === v ? '#8dc63f' : '#161e2e', color: filtro === v ? '#0a0d14' : '#6b7a8d', border: `1px solid ${filtro === v ? '#8dc63f' : '#1e2a3a'}`, fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}>
+            {l}
+          </button>
+        ))}
+        <button onClick={cargar} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer' }}>↻ ACTUALIZAR</button>
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando...</div>}
+      {!loading && solicitudes.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 40, color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+          No hay solicitudes {filtro !== 'todas' ? filtro.toLowerCase() + 's' : ''}.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {solicitudes.map(sol => (
+          <div key={sol.id} style={{ background: '#0f1420', border: `1px solid ${sol.estado === 'PENDIENTE' ? '#f59e0b30' : '#1e2a3a'}`, borderRadius: 10, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                    {sol.usuario?.nombre || sol.usuario?.email || '—'}
+                  </span>
+                  {sol.usuario?.codigo_jugador && (
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', background: '#1e2535', borderRadius: 4, padding: '2px 7px' }}>
+                      #{sol.usuario.codigo_jugador}
+                    </span>
+                  )}
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, fontWeight: 700, color: ESTADO_COLOR[sol.estado] || '#6b7a8d', background: (ESTADO_COLOR[sol.estado] || '#6b7a8d') + '20', borderRadius: 4, padding: '2px 8px' }}>
+                    {sol.estado}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700, color: '#8dc63f' }}>
+                    {Number(sol.monto_local).toLocaleString('es-CO')} {sol.moneda}
+                  </span>
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8', alignSelf: 'center' }}>
+                    → <strong>{sol.creditos} créditos</strong>
+                  </span>
+                </div>
+                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 4 }}>
+                  {sol.cuenta?.metodo_nombre || sol.metodo} · {new Date(sol.created_at).toLocaleString('es-CO')}
+                  {sol.referencia_pago && <> · Ref: <span style={{ color: '#c0cad8' }}>{sol.referencia_pago}</span></>}
+                </div>
+                {sol.notas_usuario && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#a78bfa', marginTop: 4 }}>Nota: {sol.notas_usuario}</div>}
+                {sol.notas_admin && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f87171', marginTop: 4 }}>Admin: {sol.notas_admin}</div>}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                {sol.comprobante_url ? (
+                  <a href={`${UPLOADS_BASE_ADMIN}${sol.comprobante_url}`} target="_blank" rel="noreferrer"
+                    style={{ display: 'block', background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 6, padding: '6px 10px', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, textDecoration: 'none', letterSpacing: '0.04em' }}>
+                    📎 VER COMPROBANTE
+                  </a>
+                ) : (
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f59e0b' }}>Sin comprobante aún</span>
+                )}
+
+                {sol.estado === 'PENDIENTE' && rechazandoId !== sol.id && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => aprobar(sol.id)} disabled={procesando === sol.id}
+                      style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', opacity: procesando === sol.id ? 0.6 : 1 }}>
+                      ✅ APROBAR
+                    </button>
+                    <button onClick={() => { setRechazandoId(sol.id); setNotasRec(''); }} disabled={procesando === sol.id}
+                      style={{ background: '#1a0808', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, border: '1px solid #f8717140', borderRadius: 6, padding: '8px 14px', cursor: 'pointer' }}>
+                      ❌ RECHAZAR
+                    </button>
+                  </div>
+                )}
+
+                {sol.estado === 'PENDIENTE' && rechazandoId === sol.id && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 220 }}>
+                    <input value={notasRec} onChange={e => setNotasRec(e.target.value)}
+                      placeholder="Motivo del rechazo (opcional)"
+                      style={{ background: '#161e2e', border: '1px solid #f8717140', borderRadius: 6, padding: '7px 10px', color: '#fff', fontFamily: 'Roboto, sans-serif', fontSize: 12, outline: 'none' }} />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => rechazar(sol.id)} disabled={procesando === sol.id}
+                        style={{ flex: 1, background: '#f87171', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, border: 'none', borderRadius: 6, padding: '8px 0', cursor: 'pointer' }}>
+                        CONFIRMAR
+                      </button>
+                      <button onClick={() => setRechazandoId(null)}
+                        style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, border: 'none', borderRadius: 6, padding: '8px 12px', cursor: 'pointer' }}>
+                        CANCELAR
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {sol.estado === 'APROBADA' && (
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#8dc63f' }}>
+                    ✓ Acreditado {sol.acreditado_en ? new Date(sol.acreditado_en).toLocaleDateString('es-CO') : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MediaTab() {
   const [catActiva, setCatActiva]   = useState('carrusel');
   const [archivos,  setArchivos]    = useState([]);
@@ -930,6 +1094,7 @@ export default function AdminPanel() {
           <TabBtn active={tab === 'pines'} onClick={() => setTab('pines')}>PINES</TabBtn>
           <TabBtn active={tab === 'eventos'} onClick={() => setTab('eventos')}>EVENTOS</TabBtn>
           <TabBtn active={tab === 'finanzas'} onClick={() => setTab('finanzas')}>FINANZAS</TabBtn>
+          <TabBtn active={tab === 'recargas-manual'} onClick={() => setTab('recargas-manual')}>💰 RECARGAS</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
           <TabBtn active={tab === 'medios'}   onClick={() => setTab('medios')}>🖼 MEDIOS</TabBtn>
         </div>
@@ -939,9 +1104,10 @@ export default function AdminPanel() {
         {tab === 'retiros'   && <RetirosTab />}
         {tab === 'pines'     && <PinesAdminTab />}
         {tab === 'eventos'   && <EventosAdminTab />}
-        {tab === 'finanzas'  && <FinanzasTab />}
-        {tab === 'partidos'  && <PartidosResultadosTab isAdmin={true} />}
-        {tab === 'medios'    && <MediaTab />}
+        {tab === 'finanzas'        && <FinanzasTab />}
+        {tab === 'recargas-manual' && <RecargasManualesTab />}
+        {tab === 'partidos'        && <PartidosResultadosTab isAdmin={true} />}
+        {tab === 'medios'          && <MediaTab />}
       </div>
     </div>
   );

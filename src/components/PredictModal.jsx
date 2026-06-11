@@ -34,10 +34,16 @@ function formatFecha(fecha) {
 }
 
 export default function PredictModal({ ev, seleccion, onClose, partidoId: partidoIdProp = null, partidoCuotas = null, partidoNombre = null }) {
-  const hasOdds = !!(ev.cuota_local || ev.cuota_empate || ev.cuota_visitante);
+  const hasOdds = !!(
+    ev.cuota_local || ev.cuota_empate || ev.cuota_visitante ||
+    (ev.partidos || []).some(p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS')
+  );
   // seleccion puede ser: 'local'|'empate'|'visitante' (pre-selecciona equipo),
   // 'cuota' (abre en modo cuota sin pre-selección), o null (modo gurú)
   const [mode, setMode] = useState(hasOdds && seleccion ? 'cuota' : 'guru');
+
+  // Cuotas locales — se populan al seleccionar un partido con cuotas configuradas
+  const [localCuotas, setLocalCuotas] = useState(partidoCuotas);
 
   // User balance
   const [saldo, setSaldo]   = useState(null);
@@ -114,6 +120,10 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
     setPredicciones(preds);
     setSelections({});
     setGuruMode('AUTOMATICA');
+    // Si el partido tiene cuotas configuradas, usarlas en modo apuesta
+    if (partido.cuota_local || partido.cuota_empate || partido.cuota_visitante) {
+      setLocalCuotas({ local: partido.cuota_local, empate: partido.cuota_empate, visitante: partido.cuota_visitante });
+    }
   }
 
   function volverAPartidos() {
@@ -319,7 +329,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
                   ev={ev}
                   local={partidoNombre ? partidoNombre.split(' vs ')[0] : local}
                   visitante={partidoNombre ? partidoNombre.split(' vs ')[1] : visitante}
-                  cuotasOverride={partidoCuotas}
+                  cuotasOverride={localCuotas}
                   sel={apuestaSel} setSel={setApuestaSel}
                   monto={monto} setMonto={setMonto}
                   saldo={saldo} saldoInsuficiente={monto > (saldo ?? 0)}

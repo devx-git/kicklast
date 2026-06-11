@@ -300,6 +300,10 @@ function EventoRow({ ev, onApostar, onPredecir }) {
   ].filter(Boolean);
 
   const hasOdds = odds.length > 0;
+  // Partidos con tipo APUESTA o AMBOS (configurados por el admin)
+  const hasApuestaPartidos = !hasOdds && (ev.partidos || []).some(
+    p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS'
+  );
 
   return (
     <div style={{
@@ -328,7 +332,7 @@ function EventoRow({ ev, onApostar, onPredecir }) {
         </div>
       </div>
 
-      {/* Cuotas */}
+      {/* Cuotas nivel evento */}
       {hasOdds && (
         <div style={{ display: 'flex', gap: 5 }}>
           {odds.map(o => (
@@ -346,6 +350,23 @@ function EventoRow({ ev, onApostar, onPredecir }) {
             </button>
           ))}
         </div>
+      )}
+
+      {/* Botón apuesta cuando las cuotas están en los partidos (no en el evento) */}
+      {hasApuestaPartidos && (
+        <button onClick={() => onApostar('cuota')} style={{
+          background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+          fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+          padding: '9px 14px', borderRadius: 6,
+          border: '1px solid rgba(245,158,11,0.3)', cursor: 'pointer',
+          letterSpacing: '0.05em', whiteSpace: 'nowrap',
+          transition: 'background 0.15s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,158,11,0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(245,158,11,0.1)'}
+        >
+          🎲 APOSTAR
+        </button>
       )}
 
       {/* Botón predecir */}

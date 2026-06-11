@@ -86,6 +86,21 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
           </div>
 
           {isAuth && (
+            <a href="/hub"
+              style={{
+                fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.1em', color: currentPath === '/hub' ? '#8dc63f' : '#c0cad8',
+                textDecoration: 'none', padding: '6px 10px', borderRadius: 6,
+                background: currentPath === '/hub' ? 'rgba(141,198,63,0.1)' : 'transparent',
+                border: `1px solid ${currentPath === '/hub' ? '#8dc63f30' : 'transparent'}`,
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { if (currentPath !== '/hub') e.currentTarget.style.color = '#8dc63f'; }}
+              onMouseLeave={e => { if (currentPath !== '/hub') e.currentTarget.style.color = '#c0cad8'; }}
+            >🏠 INICIO</a>
+          )}
+
+          {isAuth && (
             <div ref={bellRef} style={{ position: 'relative' }}>
               <button onClick={() => setBellOpen(o => !o)}
                 style={{ background: 'none', border: 'none', color: '#c0cad8', fontSize: 18, cursor: 'pointer', position: 'relative', padding: '6px 8px' }}>
@@ -204,6 +219,10 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
 
             {isAuth && (
               <div style={{ padding: '8px 0 4px' }}>
+                <a href="/hub" className="lk-mobile-link"
+                  style={{ color: isActive('/hub') ? '#8dc63f' : '#c0cad8', fontSize: 13, fontWeight: isActive('/hub') ? 700 : undefined }}>
+                  🏠 Inicio (Hub)
+                </a>
                 <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', padding: '8px 20px 4px' }}>MI CUENTA</div>
                 {USER_MENU.map(l => (
                   <a key={l.href} href={l.href} className="lk-mobile-link"

@@ -324,6 +324,7 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
                   monto={monto} setMonto={setMonto}
                   saldo={saldo} saldoInsuficiente={monto > (saldo ?? 0)}
                   submitting={submitting} onSubmit={submitApuesta}
+                  moneda={moneda}
                 />
               ) : loadingData ? (
                 <LoadingGuruSkeleton />
@@ -440,7 +441,7 @@ function PartidoSelector({ partidos, onSelect }) {
 }
 
 /* ── Sección Cuotas ────────────────────────────────────────────────────────── */
-function CuotaSection({ ev, local, visitante, cuotasOverride, sel, setSel, monto, setMonto, saldo, saldoInsuficiente, submitting, onSubmit }) {
+function CuotaSection({ ev, local, visitante, cuotasOverride, sel, setSel, monto, setMonto, saldo, saldoInsuficiente, submitting, onSubmit, moneda = 'USD' }) {
   // cuotasOverride viene cuando se apuesta por un partido específico
   const cl = cuotasOverride?.local     ?? ev.cuota_local;
   const ce = cuotasOverride?.empate    ?? ev.cuota_empate;
@@ -475,6 +476,11 @@ function CuotaSection({ ev, local, visitante, cuotasOverride, sel, setSel, monto
         onChange={e => setMonto(Math.max(1, Number(e.target.value)))}
         style={{ background: '#0a0d14', border: `1px solid ${saldoInsuficiente ? '#ef4444' : '#1e2a3a'}`, borderRadius: 6, padding: '10px 14px', color: '#fff', fontFamily: 'Roboto, sans-serif', fontSize: 14, width: '100%', boxSizing: 'border-box', outline: 'none', marginBottom: 4 }}
       />
+      {moneda !== 'USD' && monto > 0 && (
+        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 4 }}>
+          ≈ {creditosAMonedaLocal(monto, moneda)}
+        </div>
+      )}
       {saldoInsuficiente && (
         <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f87171', marginBottom: 12 }}>
           Saldo insuficiente. Tienes {saldo ?? 0} CR disponibles.{' '}
@@ -484,7 +490,10 @@ function CuotaSection({ ev, local, visitante, cuotasOverride, sel, setSel, monto
 
       {cuotaVal && !saldoInsuficiente && (
         <div style={{ background: '#161e2e', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d' }}>Ganancia estimada si ganas</span>
+          <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d' }}>
+            Ganancia estimada si ganas
+            {moneda !== 'USD' && <span style={{ display: 'block', fontSize: 11, color: '#4a5568' }}>≈ {creditosAMonedaLocal(est, moneda)}</span>}
+          </span>
           <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 17, fontWeight: 700, color: '#8dc63f' }}>{est} CR</span>
         </div>
       )}

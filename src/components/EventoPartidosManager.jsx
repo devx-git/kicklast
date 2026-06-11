@@ -76,8 +76,8 @@ function PartidoConfigRow({ partido, onSaved }) {
     try {
       await api.patch(`/partidos/${partido.id}`, payload);
       setMsg('✓ Guardado');
-      setOpen(false);
       onSaved?.({ ...partido, ...payload });
+      setTimeout(() => setOpen(false), 1400);
     } catch (e) {
       const m = e.response?.data?.message;
       setMsg('✗ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al guardar'));

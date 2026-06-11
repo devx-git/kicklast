@@ -29,12 +29,10 @@ const AUTH_NAV = {
     { href: '/promotor/crear-evento', label: '➕ Crear Evento' },
   ],
   ADMIN: [
-    { href: '/admin',   label: '⚙ Admin Panel' },
-    { href: '/eventos', label: 'Eventos' },
+    { href: '/admin', label: '⚙ Admin Panel' },
   ],
   SUPER_ADMIN: [
-    { href: '/admin',   label: '⚙ Admin Panel' },
-    { href: '/eventos', label: 'Eventos' },
+    { href: '/admin', label: '⚙ Admin Panel' },
   ],
   DISTRIBUIDOR: [
     { href: '/distribuidor', label: '📊 Mi Panel' },
@@ -49,6 +47,11 @@ const USER_MENU = [
   { href: '/retiros',          label: '💸 Retiros' },
   { href: '/recargar',         label: '⚡ Recargar' },
   { href: '/canjear-pin',      label: '🔑 Canjear PIN' },
+];
+
+// Perfil mínimo para roles no-USUARIO (admin, promotor, distribuidor)
+const PERFIL_LINKS = [
+  { href: '/dashboard', label: '👤 Mi Perfil' },
 ];
 
 export default function Navbar({ jackpotVal = '$200.000' }) {
@@ -210,14 +213,25 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
                       {l.label}
                     </a>
                   ))}
-                  {/* Para otros roles: link directo a su panel */}
-                  {!showUserMenu && AUTH_NAV[userRole]?.map(l => (
-                    <a key={l.href} href={l.href} style={{ display: 'block', padding: '11px 18px', color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #1e2a3a' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      {l.label}
-                    </a>
-                  ))}
+                  {/* Para otros roles: Mi Perfil + links de su panel */}
+                  {!showUserMenu && (
+                    <>
+                      {PERFIL_LINKS.map(l => (
+                        <a key={l.href} href={l.href} style={{ display: 'block', padding: '11px 18px', color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #1e2a3a' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          {l.label}
+                        </a>
+                      ))}
+                      {AUTH_NAV[userRole]?.map(l => (
+                        <a key={l.href} href={l.href} style={{ display: 'block', padding: '11px 18px', color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #1e2a3a' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          {l.label}
+                        </a>
+                      ))}
+                    </>
+                  )}
                   <button onClick={logout} style={{ width: '100%', background: 'none', border: 'none', padding: '11px 18px', color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -263,18 +277,24 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
               ))}
             </div>
 
-            {/* Menú de cuenta (solo rol USUARIO) */}
-            {showUserMenu && (
-              <div style={{ padding: '8px 0 4px' }}>
-                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', padding: '8px 20px 4px' }}>MI CUENTA</div>
-                {USER_MENU.map(l => (
-                  <a key={l.href} href={l.href} className="lk-mobile-link"
-                    style={{ color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontSize: 13 }}>
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            )}
+            {/* Menú de cuenta */}
+            <div style={{ padding: '8px 0 4px' }}>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', padding: '8px 20px 4px' }}>MI CUENTA</div>
+              {showUserMenu
+                ? USER_MENU.map(l => (
+                    <a key={l.href} href={l.href} className="lk-mobile-link"
+                      style={{ color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontSize: 13 }}>
+                      {l.label}
+                    </a>
+                  ))
+                : PERFIL_LINKS.map(l => (
+                    <a key={l.href} href={l.href} className="lk-mobile-link"
+                      style={{ color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontSize: 13 }}>
+                      {l.label}
+                    </a>
+                  ))
+              }
+            </div>
 
             <div className="lk-mobile-auth">
               {isAuth ? (

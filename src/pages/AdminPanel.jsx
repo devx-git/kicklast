@@ -465,11 +465,14 @@ function PinesAdminTab() {
 
 // ─── EVENTOS ADMIN ─────────────────────────────────────────────────────────
 function EventosAdminTab() {
-  const [eventos, setEventos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actioning, setActioning] = useState(null);
-  const [msg, setMsg] = useState('');
-  const [configEvento, setConfigEvento] = useState(null); // { id, nombre }
+  const [eventos,      setEventos]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [actioning,    setActioning]    = useState(null);
+  const [msg,          setMsg]          = useState('');
+  const [configEvento, setConfigEvento] = useState(null);  // { id, nombre }
+  const [reasigModal,  setReasigModal]  = useState(null);  // { id, nombre, promotor_id }
+  const [promotores,   setPromotores]   = useState([]);
+  const [selPromotor,  setSelPromotor]  = useState('');
 
   const cargar = useCallback(() => {
     setLoading(true);
@@ -477,6 +480,31 @@ function EventosAdminTab() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Cargar lista de promotores aprobados para el modal de reasignación
+  const abrirReasig = async (ev) => {
+    try {
+      const { data } = await api.get('/auth/promotores?estado=APROBADO');
+      setPromotores(data);
+      setSelPromotor(ev.promotor_id || '');
+      setReasigModal({ id: ev.id, nombre: ev._nombre, promotor_id: ev.promotor_id });
+    } catch {
+      setMsg('✗ No se pudieron cargar los promotores');
+    }
+  };
+
+  const confirmarReasig = async () => {
+    if (!reasigModal || !selPromotor) return;
+    setActioning(reasigModal.id + 'r');
+    try {
+      const r = await api.patch(`/eventos/${reasigModal.id}/reasignar`, { promotor_id: selPromotor });
+      setMsg(`✓ ${r.data.mensaje}`);
+      setReasigModal(null);
+      cargar();
+    } catch (ex) {
+      setMsg(`✗ ${ex.response?.data?.message || 'Error al reasignar'}`);
+    } finally { setActioning(null); }
+  };
 
   const liquidar = async (id) => {
     if (!window.confirm('¿Liquidar este evento? Esta acción es irreversible.')) return;
@@ -516,18 +544,26 @@ function EventosAdminTab() {
 
   const flat = eventos.map(ev => ({
     ...ev,
-    _nombre: ev.nombre || '—',
-    _pozo_cr: Number(ev.acumulado_actual || 0),
-    _casa: `${ev.porcentaje_casa ?? 0}%`,
-    _pozo_pct: `${ev.porcentaje_pozo ?? 0}%`,
-    _impuesto: `${ev.porcentaje_impuesto ?? 0}%`,
-    _estado: ev.estado || 'ACTIVO',
+    _nombre:      ev.nombre || '—',
+    _promotor:    ev.promotor?.nombre || '—',
+    _promotor_id: ev.promotor_id || '',
+    _pozo_cr:     Number(ev.acumulado_actual || 0),
+    _casa:        `${ev.porcentaje_casa ?? 0}%`,
+    _pozo_pct:    `${ev.porcentaje_pozo ?? 0}%`,
+    _impuesto:    `${ev.porcentaje_impuesto ?? 0}%`,
+    _estado:      ev.estado || 'ACTIVO',
     _costo_vidas: ev.costo_vidas ?? '—',
-    _fecha: ev.fecha_inicio ? new Date(ev.fecha_inicio).toLocaleDateString('es-CO') : '—',
+    _fecha:       ev.fecha_inicio ? new Date(ev.fecha_inicio).toLocaleDateString('es-CO') : '—',
   }));
 
   const columns = [
     { key: '_nombre', label: 'EVENTO', sortable: true },
+    {
+      key: '_promotor', label: 'PROMOTOR', sortable: true,
+      render: (val) => (
+        <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8' }}>{val}</span>
+      ),
+    },
     {
       key: '_pozo_cr', label: 'POZO (CR)', sortable: true,
       render: (val) => (
@@ -555,6 +591,11 @@ function EventosAdminTab() {
             onClick={() => setConfigEvento({ id: row.id, nombre: row._nombre })}
             style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #8dc63f25', cursor: 'pointer' }}>
             ⚙ PARTIDOS
+          </button>
+          <button
+            onClick={() => abrirReasig(row)}
+            style={{ background: '#161e2e', color: '#a78bfa', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #a78bfa30', cursor: 'pointer' }}>
+            🔄 PROMOTOR
           </button>
           {!row.cerrado && row._estado !== 'LIQUIDADO' && (
             <button onClick={() => cerrar(row.id)} disabled={!!actioning} style={{ background: '#1e2535', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f59e0b30', cursor: 'pointer' }}>CERRAR</button>
@@ -585,6 +626,52 @@ function EventosAdminTab() {
           eventoNombre={configEvento.nombre}
           onClose={() => setConfigEvento(null)}
         />
+      )}
+
+      {/* Modal reasignación de promotor */}
+      {reasigModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: '#161e2e', border: '1px solid #a78bfa40', borderRadius: 10, padding: '28px', maxWidth: 460, width: '100%' }}>
+            <h3 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, color: '#a78bfa', margin: '0 0 6px' }}>🔄 Reasignar Promotor</h3>
+            <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', margin: '0 0 18px' }}>
+              Evento: <strong style={{ color: '#fff' }}>{reasigModal.nombre}</strong>
+            </p>
+
+            <label style={{ display: 'block', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 6 }}>
+              SELECCIONAR PROMOTOR
+            </label>
+            <select
+              value={selPromotor}
+              onChange={e => setSelPromotor(e.target.value)}
+              style={{ width: '100%', background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 12px', color: '#fff', fontFamily: 'Roboto, sans-serif', fontSize: 13, marginBottom: 16, boxSizing: 'border-box' }}
+            >
+              <option value="">— Selecciona un promotor —</option>
+              {promotores.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} · {p.email} · {p.pais}
+                </option>
+              ))}
+            </select>
+
+            {selPromotor && selPromotor !== reasigModal.promotor_id && (
+              <div style={{ background: '#0a0f1a', border: '1px solid #a78bfa30', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#a78bfa' }}>
+                El evento será reasignado a: <strong>{promotores.find(p => p.id === selPromotor)?.nombre}</strong>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setReasigModal(null)} style={{ background: 'none', border: '1px solid #1e2a3a', color: '#6b7a8d', borderRadius: 5, padding: '8px 18px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}>
+                CANCELAR
+              </button>
+              <button
+                onClick={confirmarReasig}
+                disabled={!selPromotor || selPromotor === reasigModal.promotor_id || actioning === reasigModal.id + 'r'}
+                style={{ background: selPromotor && selPromotor !== reasigModal.promotor_id ? '#a78bfa20' : '#1e2a3a', color: selPromotor && selPromotor !== reasigModal.promotor_id ? '#a78bfa' : '#4a5568', border: `1px solid ${selPromotor && selPromotor !== reasigModal.promotor_id ? '#a78bfa40' : '#1e2a3a'}`, borderRadius: 5, padding: '8px 18px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}>
+                {actioning === reasigModal.id + 'r' ? 'GUARDANDO...' : '🔄 CONFIRMAR REASIGNACIÓN'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

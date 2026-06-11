@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '../services/authService';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
@@ -988,6 +988,250 @@ function RecargasPromotorTab() {
   );
 }
 
+// ── MÉTODOS DE PAGO TAB ───────────────────────────────────────────────────
+const PAISES_COBRO = [
+  { code: 'CO', label: '🇨🇴 Colombia' }, { code: 'MX', label: '🇲🇽 México' },
+  { code: 'AR', label: '🇦🇷 Argentina' }, { code: 'PE', label: '🇵🇪 Perú' },
+  { code: 'CL', label: '🇨🇱 Chile' }, { code: 'EC', label: '🇪🇨 Ecuador' },
+  { code: 'US', label: '🇺🇸 USA' }, { code: 'ES', label: '🇪🇸 España' },
+  { code: 'VE', label: '🇻🇪 Venezuela' },
+];
+
+const METODOS_CLAVE = [
+  { v: 'nequi',         l: 'Nequi' },
+  { v: 'daviplata',     l: 'Daviplata' },
+  { v: 'bancolombia',   l: 'Bancolombia' },
+  { v: 'transferencia', l: 'Transferencia bancaria' },
+  { v: 'efectivo',      l: 'Efectivo' },
+  { v: 'yape',          l: 'Yape' },
+  { v: 'pse',           l: 'PSE' },
+  { v: 'spei',          l: 'SPEI' },
+  { v: 'pix',           l: 'PIX' },
+  { v: 'zelle',         l: 'Zelle' },
+  { v: 'paypal',        l: 'PayPal' },
+  { v: 'usdt',          l: 'USDT Cripto' },
+  { v: 'bizum',         l: 'Bizum' },
+  { v: 'otro',          l: 'Otro' },
+];
+
+const FORM_VACIO = {
+  pais_codigo: 'CO', metodo_clave: 'nequi', metodo_nombre: 'Nequi',
+  numero_cuenta: '', nombre_titular: '', banco: '', instrucciones: '',
+  activo: true, orden: 0,
+};
+
+function MetodosPagoTab() {
+  const [cuentas,    setCuentas]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [showForm,   setShowForm]   = useState(false);
+  const [editId,     setEditId]     = useState(null);
+  const [form,       setForm]       = useState(FORM_VACIO);
+  const [saving,     setSaving]     = useState(false);
+  const [msg,        setMsg]        = useState('');
+  const [err,        setErr]        = useState('');
+  const [uploadId,   setUploadId]   = useState(null);
+  const fileRef = useRef(null);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/recargas-manual/cuentas')
+      .then(r => setCuentas(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setCuentas([]))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const handle = e => {
+    const { name, value, type, checked } = e.target;
+    let upd = { [name]: type === 'checkbox' ? checked : value };
+    // Auto-llenar metodo_nombre si cambia metodo_clave
+    if (name === 'metodo_clave') {
+      const found = METODOS_CLAVE.find(m => m.v === value);
+      if (found) upd.metodo_nombre = found.l;
+    }
+    setForm(f => ({ ...f, ...upd }));
+  };
+
+  const abrir = (cuenta = null) => {
+    if (cuenta) {
+      setEditId(cuenta.id);
+      setForm({ pais_codigo: cuenta.pais_codigo, metodo_clave: cuenta.metodo_clave, metodo_nombre: cuenta.metodo_nombre, numero_cuenta: cuenta.numero_cuenta ?? '', nombre_titular: cuenta.nombre_titular ?? '', banco: cuenta.banco ?? '', instrucciones: cuenta.instrucciones ?? '', activo: cuenta.activo, orden: cuenta.orden });
+    } else {
+      setEditId(null);
+      setForm(FORM_VACIO);
+    }
+    setErr(''); setMsg('');
+    setShowForm(true);
+  };
+
+  const guardar = async e => {
+    e.preventDefault();
+    setSaving(true); setErr(''); setMsg('');
+    try {
+      const payload = { ...form, orden: Number(form.orden) };
+      if (editId) {
+        await api.patch(`/recargas-manual/cuentas/${editId}`, payload);
+      } else {
+        await api.post('/recargas-manual/cuentas', payload);
+      }
+      setMsg('✓ Guardado correctamente');
+      setTimeout(() => { setShowForm(false); load(); }, 1200);
+    } catch (ex) {
+      setErr(ex.response?.data?.message || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const eliminar = async (id) => {
+    if (!window.confirm('¿Eliminar esta cuenta de cobro?')) return;
+    try {
+      await api.delete(`/recargas-manual/cuentas/${id}`);
+      load();
+    } catch {}
+  };
+
+  const subirQr = async (file, cuentaId) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      await api.post(`/recargas-manual/cuentas/${cuentaId}/qr`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setMsg('✓ QR subido'); load();
+    } catch (ex) { setErr(ex.response?.data?.message || 'Error al subir QR'); }
+    finally { setUploadId(null); }
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando métodos...</div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#fff' }}>Cuentas de cobro</div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>Configura dónde recibir los pagos manuales de tus usuarios</div>
+        </div>
+        <button onClick={() => abrir()} style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', border: 'none', borderRadius: 6, padding: '9px 16px', cursor: 'pointer' }}>
+          + AGREGAR CUENTA
+        </button>
+      </div>
+
+      {/* Lista */}
+      {cuentas.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, background: '#0f1420', borderRadius: 10, border: '1px dashed #1e2a3a' }}>
+          No tienes cuentas configuradas aún.<br />Agrega una para que tus usuarios puedan enviarte pagos.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {cuentas.map(c => (
+            <div key={c.id} style={{ ...CARD, borderColor: c.activo ? '#1e2a3a' : '#4a5568', opacity: c.activo ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#fff' }}>{c.metodo_nombre}</div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d' }}>{c.pais_codigo} · {!c.activo && <span style={{ color: '#f59e0b' }}>Inactivo</span>}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => abrir(c)} style={{ background: '#1e2535', border: 'none', color: '#8dc63f', cursor: 'pointer', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>✏️</button>
+                  <button onClick={() => eliminar(c.id)} style={{ background: '#1e2535', border: 'none', color: '#f87171', cursor: 'pointer', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>🗑️</button>
+                </div>
+              </div>
+              {c.nombre_titular && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8', marginBottom: 4 }}>👤 {c.nombre_titular}</div>}
+              {c.numero_cuenta  && <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, color: '#8dc63f', marginBottom: 4 }}>📱 {c.numero_cuenta}</div>}
+              {c.banco          && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 4 }}>🏦 {c.banco}</div>}
+              {c.instrucciones  && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', borderTop: '1px solid #1e2a3a', paddingTop: 8, marginTop: 8 }}>{c.instrucciones}</div>}
+              {/* QR */}
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {c.qr_url ? (
+                  <img src={c.qr_url} alt="QR" style={{ width: 56, height: 56, borderRadius: 6, border: '1px solid #1e2a3a', objectFit: 'contain', background: '#fff' }} />
+                ) : (
+                  <div style={{ width: 56, height: 56, borderRadius: 6, border: '1px dashed #1e2a3a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📷</div>
+                )}
+                <div>
+                  <input ref={uploadId === c.id ? fileRef : null} type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => e.target.files?.[0] && subirQr(e.target.files[0], c.id)} />
+                  <button onClick={() => { setUploadId(c.id); setTimeout(() => fileRef.current?.click(), 50); }}
+                    style={{ background: '#1e2535', border: '1px solid #1e2a3a', color: '#c0cad8', cursor: 'pointer', borderRadius: 4, padding: '5px 10px', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>
+                    {c.qr_url ? 'Cambiar QR' : 'Subir QR'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {msg && <div style={{ marginTop: 16, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
+      {err && <div style={{ marginTop: 16, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+
+      {/* ── Formulario ── */}
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+          <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#fff' }}>{editId ? 'Editar cuenta' : 'Nueva cuenta de cobro'}</div>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#6b7a8d', cursor: 'pointer', fontSize: 18 }}>✕</button>
+            </div>
+
+            <form onSubmit={guardar}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ ...LABEL }}>País</label>
+                  <select name="pais_codigo" value={form.pais_codigo} onChange={handle} style={{ ...INPUT }}>
+                    {PAISES_COBRO.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...LABEL }}>Método</label>
+                  <select name="metodo_clave" value={form.metodo_clave} onChange={handle} style={{ ...INPUT }}>
+                    {METODOS_CLAVE.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {[
+                { name: 'metodo_nombre',  label: 'Nombre mostrado al usuario', placeholder: 'Ej: Nequi Colombia' },
+                { name: 'numero_cuenta',  label: 'Número de cuenta / celular',  placeholder: 'Ej: 3001234567' },
+                { name: 'nombre_titular', label: 'Nombre del titular',          placeholder: 'Ej: Juan Pérez' },
+                { name: 'banco',          label: 'Banco (si aplica)',            placeholder: 'Ej: Bancolombia' },
+              ].map(f => (
+                <div key={f.name} style={{ marginBottom: 12 }}>
+                  <label style={{ ...LABEL }}>{f.label}</label>
+                  <input name={f.name} value={form[f.name]} onChange={handle} placeholder={f.placeholder} style={{ ...INPUT }} />
+                </div>
+              ))}
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ ...LABEL }}>Instrucciones para el usuario</label>
+                <textarea name="instrucciones" value={form.instrucciones} onChange={handle} rows={3} placeholder="Ej: Enviar monto exacto. En el concepto incluir tu código de jugador." style={{ ...INPUT, resize: 'vertical' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, marginBottom: 20, alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" name="activo" checked={form.activo} onChange={handle} style={{ accentColor: '#8dc63f', width: 15, height: 15 }} />
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#c0cad8' }}>Cuenta activa</span>
+                </label>
+                <div style={{ flex: 1 }}>
+                  <label style={{ ...LABEL }}>Orden de aparición</label>
+                  <input type="number" name="orden" min={0} max={99} value={form.orden} onChange={handle} style={{ ...INPUT, width: 60 }} />
+                </div>
+              </div>
+
+              {err && <div style={{ marginBottom: 12, color: '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{err}</div>}
+              {msg && <div style={{ marginBottom: 12, color: '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>{msg}</div>}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="submit" disabled={saving} style={{ flex: 1, background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', border: 'none', borderRadius: 6, padding: '11px 0', cursor: 'pointer' }}>
+                  {saving ? 'Guardando...' : editId ? 'ACTUALIZAR' : 'CREAR CUENTA'}
+                </button>
+                <button type="button" onClick={() => setShowForm(false)} style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, border: 'none', borderRadius: 6, padding: '11px 16px', cursor: 'pointer' }}>CANCELAR</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── EVENTOS TAB ───────────────────────────────────────────────────────────
 function EventosTab({ eventos }) {
   const [configEvento, setConfigEvento] = useState(null); // { id, nombre }
@@ -1130,6 +1374,7 @@ export default function PanelPromotor() {
           <TabBtn active={tab === 'eventos'} onClick={() => setTab('eventos')}>MIS EVENTOS</TabBtn>
           <TabBtn active={tab === 'ganadores'} onClick={() => setTab('ganadores')}>GANADORES</TabBtn>
           <TabBtn active={tab === 'recargas'} onClick={() => setTab('recargas')}>RECARGAS</TabBtn>
+          <TabBtn active={tab === 'metodos-pago'} onClick={() => setTab('metodos-pago')}>💳 MÉTODOS PAGO</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
           <TabBtn active={tab === 'perfil'} onClick={() => setTab('perfil')}>👤 MI PERFIL</TabBtn>
         </div>
@@ -1139,7 +1384,8 @@ export default function PanelPromotor() {
         {tab === 'distribuidores' && <DistribuidoresTab />}
         {tab === 'pines' && <PinesTab />}
         {tab === 'ganadores' && <GanadoresTab />}
-        {tab === 'recargas' && <RecargasPromotorTab />}
+        {tab === 'recargas'      && <RecargasPromotorTab />}
+        {tab === 'metodos-pago' && <MetodosPagoTab />}
         {tab === 'eventos' && <EventosTab eventos={eventos} />}
         {tab === 'partidos' && <PartidosResultadosTab isAdmin={false} />}
         {tab === 'perfil'   && <EditarPerfil perfil={perfil} />}

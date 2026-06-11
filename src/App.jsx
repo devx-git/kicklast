@@ -29,6 +29,7 @@ const Retiros            = lazy(() => import('./pages/Retiros'));
 const MisApuestas        = lazy(() => import('./pages/MisApuestas'));
 const CanjearPin         = lazy(() => import('./pages/CanjearPin'));
 const Recargar           = lazy(() => import('./pages/Recargar'));
+const Checkout           = lazy(() => import('./pages/Checkout'));
 const PagoRetorno        = lazy(() => import('./pages/PagoRetorno'));
 const Resultados         = lazy(() => import('./pages/Resultados'));
 const Campeonatos        = lazy(() => import('./pages/Campeonatos'));
@@ -265,6 +266,7 @@ export default function App() {
           <Route path="/mis-apuestas"     element={<MisApuestas />} />
           <Route path="/canjear-pin"      element={<CanjearPin />} />
           <Route path="/recargar"         element={<Recargar />} />
+          <Route path="/checkout"         element={<Checkout />} />
           <Route path="/pago/retorno"     element={<PagoRetorno />} />
 
           {/* ── Contenido deportivo ── */}

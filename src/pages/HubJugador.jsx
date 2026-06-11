@@ -34,6 +34,12 @@ function esHoy(iso) {
   return new Date().toDateString() === new Date(iso).toDateString();
 }
 
+function esMañana(iso) {
+  if (!iso) return false;
+  const m = new Date(); m.setDate(m.getDate() + 1);
+  return m.toDateString() === new Date(iso).toDateString();
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function HubJugador() {
@@ -45,6 +51,9 @@ export default function HubJugador() {
   const [loading,      setLoading]      = useState(true);
   const [vistaMode,    setVistaMode]    = useState('eventos'); // 'eventos' | 'partidos'
   const [filtroP,      setFiltroP]      = useState('todos');
+  const [selPartido,   setSelPartido]   = useState(null);
+  const [selCuota,     setSelCuota]     = useState(null);
+  const [montoBet,     setMontoBet]     = useState('');
   const refreshTimer = useRef(null);
 
   // ── Auth + role-based redirect ─────────────────────────────────────────────
@@ -113,11 +122,13 @@ export default function HubJugador() {
   );
   const pLive     = todosPartidos.filter(p => p.estado === 'EN_CURSO');
   const pHoy      = todosPartidos.filter(p => p.estado !== 'EN_CURSO' && esHoy(p.fecha));
-  const pProximos = todosPartidos.filter(p => p.fecha && new Date(p.fecha) > ahora && !esHoy(p.fecha) && p.estado !== 'EN_CURSO');
+  const pMañana   = todosPartidos.filter(p => p.estado !== 'EN_CURSO' && esMañana(p.fecha));
+  const pProximos = todosPartidos.filter(p => p.fecha && new Date(p.fecha) > ahora && !esHoy(p.fecha) && !esMañana(p.fecha) && p.estado !== 'EN_CURSO');
   const tabPartidos = {
     todos:    todosPartidos,
     vivo:     pLive,
     hoy:      [...pLive, ...pHoy],
+    mañana:   pMañana,
     proximos: pProximos,
   }[filtroP] ?? todosPartidos;
   const partidosFiltrados = [...tabPartidos].sort((a, b) => {
@@ -232,21 +243,22 @@ export default function HubJugador() {
             ) : (
               <>
                 {/* Tabs partidos */}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 14, flexWrap: 'wrap' }}>
                   {[
                     { key: 'todos',    label: 'Todos',      badge: todosPartidos.length },
                     { key: 'vivo',     label: '● En vivo',  badge: pLive.length, red: true },
                     { key: 'hoy',      label: 'Hoy',        badge: pHoy.length },
+                    { key: 'mañana',   label: 'Mañana',     badge: pMañana.length },
                     { key: 'proximos', label: 'Próximos',   badge: pProximos.length },
                   ].map(t => (
-                    <button key={t.key} onClick={() => setFiltroP(t.key)} style={{
+                    <button key={t.key} onClick={() => { setFiltroP(t.key); setSelPartido(null); setSelCuota(null); setMontoBet(''); }} style={{
                       background:   filtroP === t.key ? GREEN : 'transparent',
                       color:        filtroP === t.key ? '#0a0d14' : t.red ? '#ef4444' : MUTED,
                       fontFamily:   'Oswald, sans-serif', fontWeight: 700, fontSize: 11,
                       border:       `1px solid ${filtroP === t.key ? GREEN : BORDER}`,
-                      borderRadius: 5, padding: '5px 14px', cursor: 'pointer',
-                      letterSpacing: '0.06em', transition: 'all 0.15s',
-                      display: 'flex', alignItems: 'center', gap: 5,
+                      borderRadius: 5, padding: '5px 12px', cursor: 'pointer',
+                      letterSpacing: '0.05em', transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 4,
                     }}>
                       {t.label}
                       {t.badge > 0 && (
@@ -260,11 +272,12 @@ export default function HubJugador() {
                   ))}
                 </div>
 
-                {/* Grid de partidos estilo Stake */}
+                {/* Carousel de partidos */}
+                <style>{`.partido-scroll::-webkit-scrollbar{display:none}`}</style>
                 {loading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
-                    {[1,2,3,4,5,6].map(i => (
-                      <div key={i} style={{ background: CARD, borderRadius: 10, height: 160, opacity: 0.4 }} />
+                  <div style={{ display: 'flex', gap: 10, overflow: 'hidden' }}>
+                    {[1,2,3].map(i => (
+                      <div key={i} style={{ background: CARD, borderRadius: 10, height: 172, width: 248, flexShrink: 0, opacity: 0.4 }} />
                     ))}
                   </div>
                 ) : partidosFiltrados.length === 0 ? (
@@ -272,15 +285,36 @@ export default function HubJugador() {
                     No hay partidos en esta categoría
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
+                  <div className="partido-scroll" style={{
+                    display: 'flex', gap: 10, overflowX: 'auto', overflowY: 'hidden',
+                    scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                    paddingBottom: 4, paddingRight: 8,
+                  }}>
                     {partidosFiltrados.map(p => (
                       <PartidoCard
                         key={p.id}
                         partido={p}
-                        onApostar={(sel, cuotas, pId) => setModal({ ev: p._evento, seleccion: sel, cuotasIniciales: cuotas, partidoId: pId })}
+                        isSelected={selPartido?.id === p.id}
+                        selCuota={selPartido?.id === p.id ? selCuota : null}
+                        onSelect={() => { setSelPartido(p); setSelCuota(null); setMontoBet(''); }}
+                        onSelectCuota={cuota => { setSelPartido(p); setSelCuota(cuota); setMontoBet(''); }}
                       />
                     ))}
                   </div>
+                )}
+
+                {/* Panel de ganancia potencial */}
+                {selPartido && (
+                  <BetPreviewPanel
+                    partido={selPartido}
+                    selCuota={selCuota}
+                    setSelCuota={setSelCuota}
+                    monto={montoBet}
+                    setMonto={setMontoBet}
+                    onApostar={() => setModal({ ev: selPartido._evento, seleccion: selCuota, cuotasIniciales: buildCuotas(selPartido), partidoId: selPartido.id })}
+                    onPredecir={() => setModal({ ev: selPartido._evento, seleccion: null })}
+                    onCerrar={() => { setSelPartido(null); setSelCuota(null); setMontoBet(''); }}
+                  />
                 )}
               </>
             )}
@@ -421,79 +455,199 @@ function OddsButtons({ odds, color, onClick }) {
   );
 }
 
-// ─── Tarjeta de partido estilo Stake ─────────────────────────────────────────
+// ─── Tarjeta de partido — carousel style ─────────────────────────────────────
 
-function PartidoCard({ partido, onApostar }) {
+function PartidoCard({ partido, isSelected, selCuota, onSelect, onSelectCuota }) {
   const isLive = partido.estado === 'EN_CURSO';
   const odds   = buildOdds(partido);
   const liga   = partido._evento?.nombre || partido._evento?.campeonato?.nombre || '';
   const fecha  = fmtFecha(partido.fecha);
 
   return (
-    <div style={{
-      background: CARD,
-      border: `1px solid ${isLive ? '#ef444440' : BORDER}`,
-      borderRadius: 10,
-      padding: '14px 16px',
-      display: 'flex', flexDirection: 'column', gap: 10,
-      transition: 'border-color 0.15s',
-    }}>
-      {/* Cabecera: liga + badge estado */}
+    <div
+      onClick={onSelect}
+      style={{
+        background:   CARD,
+        border:       `1px solid ${isSelected ? GREEN : isLive ? '#ef444440' : BORDER}`,
+        borderRadius: 10,
+        padding:      '14px 14px 12px',
+        display:      'flex', flexDirection: 'column', gap: 10,
+        width:        248, flexShrink: 0,
+        scrollSnapAlign: 'start',
+        cursor:       'pointer',
+        transition:   'border-color 0.18s, box-shadow 0.18s',
+        boxShadow:    isSelected ? `0 0 0 1px ${GREEN}40` : 'none',
+      }}
+    >
+      {/* Cabecera */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{
-          fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%',
-        }}>{liga}</span>
+        <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '68%' }}>
+          {liga}
+        </span>
         {isLive
-          ? <span style={{ background: '#ef4444', color: '#fff', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em' }}>● LIVE</span>
-          : <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>{fecha}</span>
+          ? <span style={{ background: '#ef4444', color: '#fff', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>● LIVE</span>
+          : <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, flexShrink: 0 }}>{fecha}</span>
         }
       </div>
 
       {/* Equipos */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'right', lineHeight: 1.2 }}>
+        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', textAlign: 'right', lineHeight: 1.2 }}>
           {partido.equipo_local || 'Local'}
         </div>
-        <div style={{
-          fontFamily: 'Oswald, sans-serif', fontSize: 11, color: MUTED,
-          padding: '3px 8px', background: '#0f1420', borderRadius: 4,
-          flexShrink: 0,
-        }}>
+        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: MUTED, padding: '3px 7px', background: '#0f1420', borderRadius: 4, flexShrink: 0 }}>
           {isLive && partido.marcador_local != null
-            ? `${partido.marcador_local} - ${partido.marcador_visitante}`
+            ? `${partido.marcador_local}-${partido.marcador_visitante}`
             : 'vs'}
         </div>
-        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'left', lineHeight: 1.2 }}>
+        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', textAlign: 'left', lineHeight: 1.2 }}>
           {partido.equipo_visitante || 'Visitante'}
         </div>
       </div>
 
       {/* Cuotas */}
       {odds.length > 0 ? (
-        <div style={{ display: 'flex', gap: 5 }}>
-          {odds.map(o => (
-            <button key={o.l}
-              onClick={() => onApostar(o.sel, buildCuotas(partido), partido.id)}
-              style={{
-                flex: 1, background: '#0f1420',
-                border: `1px solid ${BORDER}`, borderRadius: 6,
-                padding: '8px 4px', cursor: 'pointer', textAlign: 'center',
-                transition: 'border-color 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = `${GREEN}70`}
-              onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
-            >
-              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: MUTED }}>{o.l}</div>
-              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: GREEN }}>{o.v}</div>
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {odds.map(o => {
+            const activo = selCuota === o.sel;
+            return (
+              <button key={o.l}
+                onClick={e => { e.stopPropagation(); onSelectCuota(o.sel); }}
+                style={{
+                  flex: 1, background: activo ? `${GREEN}20` : '#0f1420',
+                  border: `1px solid ${activo ? GREEN : BORDER}`, borderRadius: 6,
+                  padding: '7px 3px', cursor: 'pointer', textAlign: 'center',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: activo ? GREEN : MUTED }}>{o.l}</div>
+                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: activo ? GREEN : '#c0cad8' }}>{o.v}</div>
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: MUTED, padding: '4px 0' }}>
-          Sin cuotas disponibles
+        <div style={{ textAlign: 'center', fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, padding: '4px 0' }}>
+          Sin cuotas · solo predicción
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Panel de ganancia potencial ──────────────────────────────────────────────
+
+function BetPreviewPanel({ partido, selCuota, setSelCuota, monto, setMonto, onApostar, onPredecir, onCerrar }) {
+  const odds   = buildOdds(partido);
+  const cuotaSelObj = odds.find(o => o.sel === selCuota);
+  const cuotaVal    = cuotaSelObj ? Number(cuotaSelObj.v) : 0;
+  const montoNum    = parseFloat(monto) || 0;
+  const ganancia    = montoNum > 0 && cuotaVal > 0 ? (montoNum * cuotaVal).toFixed(0) : null;
+  const liga        = partido._evento?.nombre || partido._evento?.campeonato?.nombre || '';
+  const isLive      = partido.estado === 'EN_CURSO';
+
+  return (
+    <div style={{
+      marginTop: 10,
+      background: '#0f1725',
+      border: `1px solid ${GREEN}50`,
+      borderRadius: 10,
+      padding: '16px 18px',
+      display: 'flex', flexDirection: 'column', gap: 12,
+    }}>
+      {/* Header del panel */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 3 }}>{liga}</div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#fff' }}>
+            {partido.equipo_local || 'Local'}
+            <span style={{ color: MUTED, fontWeight: 400, fontSize: 12, margin: '0 8px' }}>vs</span>
+            {partido.equipo_visitante || 'Visitante'}
+            {isLive && <span style={{ marginLeft: 8, background: '#ef4444', color: '#fff', fontSize: 9, padding: '2px 6px', borderRadius: 3, verticalAlign: 'middle' }}>LIVE</span>}
+          </div>
+        </div>
+        <button onClick={onCerrar} style={{ background: 'none', border: 'none', color: MUTED, fontSize: 18, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>×</button>
+      </div>
+
+      {/* Selector de cuota */}
+      {odds.length > 0 && (
+        <div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 6 }}>SELECCIONA RESULTADO</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {odds.map(o => {
+              const activo = selCuota === o.sel;
+              return (
+                <button key={o.sel} onClick={() => setSelCuota(activo ? null : o.sel)} style={{
+                  flex: 1, padding: '10px 6px', borderRadius: 7, cursor: 'pointer',
+                  background: activo ? `${GREEN}25` : '#161e2e',
+                  border: `1px solid ${activo ? GREEN : BORDER}`,
+                  textAlign: 'center', transition: 'all 0.15s',
+                }}>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: activo ? GREEN : MUTED }}>{o.l}</div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 700, color: activo ? GREEN : '#fff' }}>{o.v}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Monto + ganancia */}
+      {selCuota && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 140px' }}>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 5 }}>MONTO A APOSTAR (CR)</div>
+            <input
+              type="number" min="1" value={monto} onChange={e => setMonto(e.target.value)}
+              placeholder="ej: 100"
+              style={{
+                width: '100%', background: '#161e2e', border: `1px solid ${BORDER}`,
+                borderRadius: 6, padding: '9px 12px', color: '#fff',
+                fontFamily: 'Oswald, sans-serif', fontSize: 15, outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ flex: '1 1 140px' }}>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 5 }}>GANANCIA POTENCIAL</div>
+            <div style={{
+              padding: '9px 12px', borderRadius: 6, border: `1px solid ${ganancia ? GREEN + '60' : BORDER}`,
+              background: ganancia ? `${GREEN}10` : '#161e2e',
+              fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 700,
+              color: ganancia ? GREEN : MUTED,
+            }}>
+              {ganancia ? `${Number(ganancia).toLocaleString('es-CO')} CR` : '—'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {odds.length > 0 && (
+          <button onClick={onApostar} disabled={!selCuota} style={{
+            flex: 1, padding: '10px 0',
+            background: selCuota ? GREEN : '#1e2a3a',
+            color: selCuota ? '#0a0d14' : MUTED,
+            fontFamily: 'Oswald, sans-serif', fontWeight: 700, fontSize: 13,
+            border: 'none', borderRadius: 7, cursor: selCuota ? 'pointer' : 'default',
+            letterSpacing: '0.06em', transition: 'all 0.15s',
+          }}>
+            {selCuota ? `APOSTAR ${cuotaSelObj?.l} × ${cuotaSelObj?.v}` : 'SELECCIONA UNA CUOTA'}
+          </button>
+        )}
+        <button onClick={onPredecir} style={{
+          flex: odds.length === 0 ? 1 : '0 0 auto',
+          padding: '10px 18px',
+          background: 'transparent',
+          color: GREEN,
+          fontFamily: 'Oswald, sans-serif', fontWeight: 700, fontSize: 13,
+          border: `1px solid ${GREEN}50`, borderRadius: 7, cursor: 'pointer',
+          letterSpacing: '0.06em',
+        }}>
+          🔮 PREDECIR
+        </button>
+      </div>
     </div>
   );
 }

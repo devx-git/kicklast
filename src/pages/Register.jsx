@@ -50,7 +50,7 @@ export default function Register() {
       await authService.register(payload);
       // Token ya guardado en authService.register()
       setSuccess(true);
-      setTimeout(() => { window.location.href = '/dashboard'; }, 2200);
+      setTimeout(() => { window.location.href = '/hub'; }, 2200);
     } catch (err) {
       const msg = err.response?.data?.message;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al registrar');

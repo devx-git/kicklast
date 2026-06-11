@@ -30,7 +30,7 @@ export default function Login() {
     try {
       await authService.login(form);
       // Token ya guardado en authService.login()
-      window.location.href = '/dashboard';
+      window.location.href = '/hub';
     } catch (err) {
       setError(err.response?.data?.message || 'Credenciales incorrectas');
     } finally {

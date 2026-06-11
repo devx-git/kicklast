@@ -21,6 +21,7 @@ const Login              = lazy(() => import('./pages/Login'));
 const Register           = lazy(() => import('./pages/Register'));
 const RecuperarClave     = lazy(() => import('./pages/RecuperarClave'));
 const NuevaClave         = lazy(() => import('./pages/NuevaClave'));
+const HubJugador         = lazy(() => import('./pages/HubJugador'));
 const Dashboard          = lazy(() => import('./pages/Dashboard'));
 const MisPredicciones    = lazy(() => import('./pages/MisPredicciones'));
 const Movimientos        = lazy(() => import('./pages/Movimientos'));
@@ -257,6 +258,7 @@ export default function App() {
           <Route path="/nueva-clave"     element={<NuevaClave />} />
 
           {/* ── Usuario ── */}
+          <Route path="/hub"              element={<HubJugador />} />
           <Route path="/dashboard"        element={<Dashboard />} />
           <Route path="/mis-predicciones" element={<MisPredicciones />} />
           <Route path="/movimientos"      element={<Movimientos />} />

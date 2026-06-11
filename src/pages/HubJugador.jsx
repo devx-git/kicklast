@@ -283,10 +283,43 @@ function Stat({ label, valor, color }) {
   );
 }
 
+// ─── Helpers para cuotas de partido ──────────────────────────────────────────
+
+function buildOdds(p) {
+  return [
+    p.cuota_local     && { l: '1', v: Number(p.cuota_local).toFixed(2),     sel: 'local' },
+    p.cuota_empate    && { l: 'X', v: Number(p.cuota_empate).toFixed(2),    sel: 'empate' },
+    p.cuota_visitante && { l: '2', v: Number(p.cuota_visitante).toFixed(2), sel: 'visitante' },
+  ].filter(Boolean);
+}
+
+function buildCuotas(p) {
+  return { local: p.cuota_local, empate: p.cuota_empate, visitante: p.cuota_visitante };
+}
+
+function OddsButtons({ odds, color, onClick }) {
+  return (
+    <div style={{ display: 'flex', gap: 5 }}>
+      {odds.map(o => (
+        <button key={o.l} onClick={() => onClick(o.sel)}
+          style={{ background: '#0f1420', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '7px 12px', cursor: 'pointer', textAlign: 'center', minWidth: 44, transition: 'border-color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = `${color}60`}
+          onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
+        >
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 1 }}>{o.l}</div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color }}>{o.v}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Fila de evento ───────────────────────────────────────────────────────────
 
 function EventoRow({ ev, onApostar, onPredecir }) {
-  const isLive = ev.estado === 'EN_VIVO';
+  const [expandido, setExpandido] = useState(false);
+
+  const isLive    = ev.estado === 'EN_VIVO';
   const local     = ev.equipo_local     || ev.nombre?.split(' vs ')?.[0] || ev.nombre;
   const visitante = ev.equipo_visitante || ev.nombre?.split(' vs ')?.[1] || 'Visitante';
   const liga      = ev.campeonato?.nombre || '';
@@ -294,132 +327,125 @@ function EventoRow({ ev, onApostar, onPredecir }) {
   const pozo      = Number(ev.acumulado_actual ?? 0);
   const costo     = Number(ev.costo_creditos ?? 2);
 
-  const odds = [
-    ev.cuota_local     && { l: '1', v: Number(ev.cuota_local).toFixed(2),     sel: 'local' },
-    ev.cuota_empate    && { l: 'X', v: Number(ev.cuota_empate).toFixed(2),    sel: 'empate' },
-    ev.cuota_visitante && { l: '2', v: Number(ev.cuota_visitante).toFixed(2), sel: 'visitante' },
-  ].filter(Boolean);
+  // Cuotas a nivel de evento
+  const oddsEvento = buildOdds(ev);
 
-  const hasOdds = odds.length > 0;
-
-  // Partido individual con tipo APUESTA/AMBOS y cuotas configuradas
-  const apuestaPartido = !hasOdds
-    ? (ev.partidos || []).find(p =>
-        (p.tipo === 'APUESTA' || p.tipo === 'AMBOS') &&
-        (p.cuota_local || p.cuota_visitante)
-      )
-    : null;
-  const oddsPartido = apuestaPartido ? [
-    apuestaPartido.cuota_local     && { l: '1', v: Number(apuestaPartido.cuota_local).toFixed(2),     sel: 'local' },
-    apuestaPartido.cuota_empate    && { l: 'X', v: Number(apuestaPartido.cuota_empate).toFixed(2),    sel: 'empate' },
-    apuestaPartido.cuota_visitante && { l: '2', v: Number(apuestaPartido.cuota_visitante).toFixed(2), sel: 'visitante' },
-  ].filter(Boolean) : [];
-  const apuestaCuotas = apuestaPartido
-    ? { local: apuestaPartido.cuota_local, empate: apuestaPartido.cuota_empate, visitante: apuestaPartido.cuota_visitante }
-    : null;
-
-  // Botón genérico cuando hay partidos APUESTA pero sin cuotas definidas aún
-  const hasApuestaPartidos = !hasOdds && !apuestaPartido && (ev.partidos || []).some(
-    p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS'
+  // Partidos con apuesta configurada (tipo APUESTA o AMBOS)
+  const apuestaPartidos = (ev.partidos || []).filter(
+    p => (p.tipo === 'APUESTA' || p.tipo === 'AMBOS') && (p.cuota_local || p.cuota_visitante)
   );
+  // Partidos con tipo apuesta pero sin cuotas aún
+  const sinCuotasPartidos = !oddsEvento.length && !apuestaPartidos.length
+    ? (ev.partidos || []).filter(p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS')
+    : [];
+
+  const tieneApuesta = oddsEvento.length > 0 || apuestaPartidos.length > 0;
 
   return (
     <div style={{
       background: CARD,
       border: `1px solid ${isLive ? '#ef444430' : BORDER}`,
-      borderRadius: 10, padding: '12px 16px',
-      display: 'flex', alignItems: 'center',
-      gap: 14, flexWrap: 'wrap',
+      borderRadius: 10, overflow: 'hidden',
     }}>
-      {/* Info partido */}
-      <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-          {isLive
-            ? <span style={{ background: '#ef4444', color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 3 }}>● LIVE</span>
-            : fecha && <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>{fecha}</span>
-          }
-          {liga && <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>· {liga}</span>}
-          {pozo > 0 && <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: GREEN, marginLeft: 'auto' }}>🏆 ${(pozo/1000000).toFixed(0)}M</span>}
+      {/* ── Fila principal ── */}
+      <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+
+        {/* Info evento */}
+        <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+            {isLive
+              ? <span style={{ background: '#ef4444', color: '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 3 }}>● LIVE</span>
+              : fecha && <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>{fecha}</span>
+            }
+            {liga && <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>· {liga}</span>}
+            {pozo > 0 && <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: GREEN, marginLeft: 'auto' }}>🏆 ${(pozo/1000000).toFixed(0)}M</span>}
+          </div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>{local}</div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, margin: '2px 0' }}>vs</div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>{visitante}</div>
         </div>
-        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>
-          {local}
-        </div>
-        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, margin: '2px 0' }}>vs</div>
-        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>
-          {visitante}
-        </div>
+
+        {/* Cuotas del evento (nivel evento) */}
+        {oddsEvento.length > 0 && (
+          <OddsButtons odds={oddsEvento} color={GREEN} onClick={sel => onApostar(sel)} />
+        )}
+
+        {/* Si hay 1 solo partido apuesta: mostrar sus cuotas directamente */}
+        {!oddsEvento.length && apuestaPartidos.length === 1 && (
+          <OddsButtons odds={buildOdds(apuestaPartidos[0])} color="#f59e0b"
+            onClick={sel => onApostar(sel, buildCuotas(apuestaPartidos[0]))} />
+        )}
+
+        {/* Si hay múltiples partidos apuesta: botón expandir */}
+        {!oddsEvento.length && apuestaPartidos.length > 1 && (
+          <button onClick={() => setExpandido(o => !o)} style={{
+            background: expandido ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.08)',
+            color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+            padding: '9px 14px', borderRadius: 6, border: '1px solid rgba(245,158,11,0.35)',
+            cursor: 'pointer', letterSpacing: '0.05em', whiteSpace: 'nowrap',
+          }}>
+            🎲 {apuestaPartidos.length} PARTIDOS {expandido ? '▲' : '▼'}
+          </button>
+        )}
+
+        {/* Partidos configurados pero sin cuotas aún */}
+        {sinCuotasPartidos.length > 0 && (
+          <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>
+            🎲 Apuestas próximamente
+          </span>
+        )}
+
+        {/* Botón predecir */}
+        <button onClick={onPredecir} style={{
+          background: 'rgba(141,198,63,0.1)', color: GREEN,
+          fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
+          padding: '9px 14px', borderRadius: 6, border: `1px solid ${GREEN}40`,
+          cursor: 'pointer', letterSpacing: '0.05em', whiteSpace: 'nowrap',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(141,198,63,0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(141,198,63,0.1)'}
+        >
+          🧠 PREDECIR ({costo} CR)
+        </button>
       </div>
 
-      {/* Cuotas nivel evento */}
-      {hasOdds && (
-        <div style={{ display: 'flex', gap: 5 }}>
-          {odds.map(o => (
-            <button key={o.l} onClick={() => onApostar(o.sel)} style={{
-              background: '#0f1420', border: `1px solid ${BORDER}`,
-              borderRadius: 6, padding: '7px 12px', cursor: 'pointer',
-              textAlign: 'center', minWidth: 44,
-              transition: 'border-color 0.15s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = `${GREEN}60`}
-              onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
-            >
-              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 1 }}>{o.l}</div>
-              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: GREEN }}>{o.v}</div>
-            </button>
-          ))}
+      {/* ── Panel expandido: lista de partidos para apostar ── */}
+      {expandido && apuestaPartidos.length > 1 && (
+        <div style={{ borderTop: `1px solid ${BORDER}`, background: '#0a0d14', padding: '10px 16px 14px' }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#f59e0b', letterSpacing: '0.1em', marginBottom: 10 }}>
+            ELIGE EL PARTIDO PARA APOSTAR
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {apuestaPartidos.map(p => {
+              const pOdds = buildOdds(p);
+              const fechaP = fmtFecha(p.fecha);
+              return (
+                <div key={p.id} style={{
+                  background: CARD, border: `1px solid ${BORDER}`, borderRadius: 8,
+                  padding: '10px 14px', display: 'flex', alignItems: 'center',
+                  gap: 12, flexWrap: 'wrap',
+                }}>
+                  {/* Info partido */}
+                  <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+                    {fechaP && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 3 }}>{fechaP}</div>}
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                      {p.equipo_local || 'Local'} <span style={{ color: MUTED, fontWeight: 400 }}>vs</span> {p.equipo_visitante || 'Visitante'}
+                    </div>
+                    {p.visibilidad === 'VIP' && (
+                      <span style={{ display: 'inline-block', marginTop: 4, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 4, padding: '1px 8px', fontFamily: 'Oswald, sans-serif', fontSize: 9, color: '#a78bfa', letterSpacing: '0.08em' }}>
+                        👑 VIP
+                      </span>
+                    )}
+                  </div>
+                  {/* Cuotas */}
+                  <OddsButtons odds={pOdds} color="#f59e0b"
+                    onClick={sel => { onApostar(sel, buildCuotas(p)); setExpandido(false); }} />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
-
-      {/* Cuotas desde el partido (no el evento) */}
-      {oddsPartido.length > 0 && (
-        <div style={{ display: 'flex', gap: 5 }}>
-          {oddsPartido.map(o => (
-            <button key={o.l} onClick={() => onApostar(o.sel, apuestaCuotas)} style={{
-              background: '#0f1420', border: `1px solid ${BORDER}`,
-              borderRadius: 6, padding: '7px 12px', cursor: 'pointer',
-              textAlign: 'center', minWidth: 44, transition: 'border-color 0.15s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b60'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
-            >
-              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 1 }}>{o.l}</div>
-              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#f59e0b' }}>{o.v}</div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Botón genérico cuando hay partidos APUESTA pero sin cuotas definidas aún */}
-      {hasApuestaPartidos && (
-        <button onClick={() => onApostar('cuota', null)} style={{
-          background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
-          fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
-          padding: '9px 14px', borderRadius: 6,
-          border: '1px solid rgba(245,158,11,0.3)', cursor: 'pointer',
-          letterSpacing: '0.05em', whiteSpace: 'nowrap',
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,158,11,0.2)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(245,158,11,0.1)'}
-        >
-          🎲 APOSTAR
-        </button>
-      )}
-
-      {/* Botón predecir */}
-      <button onClick={onPredecir} style={{
-        background: 'rgba(141,198,63,0.1)', color: GREEN,
-        fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
-        padding: '9px 14px', borderRadius: 6,
-        border: `1px solid ${GREEN}40`, cursor: 'pointer',
-        letterSpacing: '0.05em', whiteSpace: 'nowrap',
-        transition: 'background 0.15s',
-      }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(141,198,63,0.2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(141,198,63,0.1)'}
-      >
-        🧠 PREDECIR ({costo} CR)
-      </button>
     </div>
   );
 }

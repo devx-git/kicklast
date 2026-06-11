@@ -7,6 +7,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [verPass, setVerPass] = useState(false);
 
   const handle = e => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -54,7 +55,13 @@ export default function Login() {
           </div>
           <div className="lk-field">
             <label>Contraseña</label>
-            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="••••••••" autoComplete="current-password" maxLength={128} />
+            <div style={{ position: 'relative' }}>
+              <input name="password" type={verPass ? 'text' : 'password'} value={form.password} onChange={handle} required placeholder="••••••••" autoComplete="current-password" maxLength={128} style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setVerPass(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16, padding: 4 }}>
+                {verPass ? '🙈' : '👁'}
+              </button>
+            </div>
             {fieldErrors.password && <span style={{ color: '#e74c3c', fontSize: 11 }}>{fieldErrors.password}</span>}
           </div>
           {error && <div className="lk-auth-error">{error}</div>}

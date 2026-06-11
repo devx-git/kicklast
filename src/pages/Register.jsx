@@ -3,29 +3,40 @@ import { authService } from '../services/authService';
 import { validateRegisterForm, isStrongPassword, PASSWORD_HINT, isValidPhone } from '../utils/sanitize';
 
 const PAISES = [
-  { code: 'CO', label: '🇨🇴 Colombia', moneda: 'COP' },
-  { code: 'MX', label: '🇲🇽 México', moneda: 'MXN' },
-  { code: 'AR', label: '🇦🇷 Argentina', moneda: 'ARS' },
-  { code: 'PE', label: '🇵🇪 Perú', moneda: 'PEN' },
-  { code: 'CL', label: '🇨🇱 Chile', moneda: 'CLP' },
-  { code: 'EC', label: '🇪🇨 Ecuador', moneda: 'USD' },
-  { code: 'VE', label: '🇻🇪 Venezuela', moneda: 'USD' },
-  { code: 'US', label: '🇺🇸 Estados Unidos', moneda: 'USD' },
-  { code: 'ES', label: '🇪🇸 España', moneda: 'EUR' },
+  { code: 'CO', label: '🇨🇴 Colombia',       moneda: 'COP', prefix: '+57'  },
+  { code: 'MX', label: '🇲🇽 México',          moneda: 'MXN', prefix: '+52'  },
+  { code: 'AR', label: '🇦🇷 Argentina',        moneda: 'ARS', prefix: '+54'  },
+  { code: 'PE', label: '🇵🇪 Perú',             moneda: 'PEN', prefix: '+51'  },
+  { code: 'CL', label: '🇨🇱 Chile',            moneda: 'CLP', prefix: '+56'  },
+  { code: 'EC', label: '🇪🇨 Ecuador',          moneda: 'USD', prefix: '+593' },
+  { code: 'VE', label: '🇻🇪 Venezuela',        moneda: 'USD', prefix: '+58'  },
+  { code: 'US', label: '🇺🇸 Estados Unidos',  moneda: 'USD', prefix: '+1'   },
+  { code: 'ES', label: '🇪🇸 España',           moneda: 'EUR', prefix: '+34'  },
 ];
 
 export default function Register() {
   // Pre-llenar código referido desde URL (?ref=LK-XXXX)
   const refFromUrl = new URLSearchParams(window.location.search).get('ref') || '';
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', confirmar: '', telefono: '', pais: 'CO', referido_por: refFromUrl, acepta_terminos: false });
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', confirmar: '', telefono: '+57', pais: 'CO', referido_por: refFromUrl, acepta_terminos: false });
   const [mostrarReferido, setMostrarReferido] = useState(!!refFromUrl);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [verPass, setVerPass] = useState(false);
+  const [verConf, setVerConf] = useState(false);
 
   const handle = e => {
     const { name, value, type, checked } = e.target;
-    setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
+    if (name === 'pais') {
+      const prefix = PAISES.find(p => p.code === value)?.prefix || '';
+      setForm(f => ({
+        ...f,
+        pais: value,
+        telefono: (!f.telefono || /^\+\d{1,4}$/.test(f.telefono.trim())) ? prefix : f.telefono,
+      }));
+    } else {
+      setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
+    }
   };
   const moneda = PAISES.find(p => p.code === form.pais)?.moneda || 'COP';
 
@@ -107,11 +118,23 @@ export default function Register() {
           </div>
           <div className="lk-field">
             <label>Contraseña</label>
-            <input name="password" type="password" value={form.password} onChange={handle} required placeholder="Mínimo 8 car. + mayúsc. + número" minLength={8} maxLength={128} autoComplete="new-password" />
+            <div style={{ position: 'relative' }}>
+              <input name="password" type={verPass ? 'text' : 'password'} value={form.password} onChange={handle} required placeholder="Mínimo 8 car. + mayúsc. + número" minLength={8} maxLength={128} autoComplete="new-password" style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setVerPass(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16, padding: 4 }}>
+                {verPass ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
           <div className="lk-field">
             <label>Confirmar contraseña</label>
-            <input name="confirmar" type="password" value={form.confirmar} onChange={handle} required placeholder="Repite tu contraseña" autoComplete="new-password" />
+            <div style={{ position: 'relative' }}>
+              <input name="confirmar" type={verConf ? 'text' : 'password'} value={form.confirmar} onChange={handle} required placeholder="Repite tu contraseña" autoComplete="new-password" style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setVerConf(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16, padding: 4 }}>
+                {verConf ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
 
           {/* Términos y condiciones */}

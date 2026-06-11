@@ -6,10 +6,11 @@ export default function NuevaClave() {
   const [searchParams]  = useSearchParams();
   const token           = searchParams.get('token') || '';
 
-  const [form,   setForm]   = useState({ password: '', confirmar: '' });
-  const [estado, setEstado] = useState(token ? 'idle' : 'sin-token'); // idle|loading|ok|error|sin-token
-  const [errMsg, setErrMsg] = useState('');
-  const [ver,    setVer]    = useState(false);
+  const [form,    setForm]    = useState({ password: '', confirmar: '' });
+  const [estado,  setEstado]  = useState(token ? 'idle' : 'sin-token'); // idle|loading|ok|error|sin-token
+  const [errMsg,  setErrMsg]  = useState('');
+  const [verPass, setVerPass] = useState(false);
+  const [verConf, setVerConf] = useState(false);
 
   const handle = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -84,29 +85,37 @@ export default function NuevaClave() {
             <div style={{ position: 'relative' }}>
               <input
                 name="password" required
-                type={ver ? 'text' : 'password'}
+                type={verPass ? 'text' : 'password'}
                 value={form.password} onChange={handle}
                 placeholder="Mínimo 6 caracteres"
                 disabled={estado === 'loading'}
                 style={{ paddingRight: 40 }}
               />
-              <button type="button" onClick={() => setVer(v => !v)}
+              <button type="button" onClick={() => setVerPass(v => !v)}
                 style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16 }}>
-                {ver ? '🙈' : '👁'}
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16, padding: 4 }}>
+                {verPass ? '🙈' : '👁'}
               </button>
             </div>
           </div>
 
           <div className="lk-field">
             <label>Confirmar contraseña</label>
-            <input
-              name="confirmar" required
-              type={ver ? 'text' : 'password'}
-              value={form.confirmar} onChange={handle}
-              placeholder="Repite la contraseña"
-              disabled={estado === 'loading'}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                name="confirmar" required
+                type={verConf ? 'text' : 'password'}
+                value={form.confirmar} onChange={handle}
+                placeholder="Repite la contraseña"
+                disabled={estado === 'loading'}
+                style={{ paddingRight: 40 }}
+              />
+              <button type="button" onClick={() => setVerConf(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a8d', fontSize: 16, padding: 4 }}>
+                {verConf ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
 
           {/* Indicador de fuerza */}

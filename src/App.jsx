@@ -215,7 +215,6 @@ function HomePage({ acumulado, stats }) {
       <Matches />
       <LiveScores />
       <HowToPlay />
-      <SeccionRecargaOnline />
       <PromoterCTA />
       <Sponsors />
       <Footer />

@@ -37,12 +37,14 @@ function esHoy(iso) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function HubJugador() {
-  const [dashData,  setDashData]  = useState(null);
-  const [eventos,   setEventos]   = useState([]);
-  const [scores,    setScores]    = useState([]);
-  const [tab,       setTab]       = useState('todos');
-  const [modal,     setModal]     = useState(null);
-  const [loading,   setLoading]   = useState(true);
+  const [dashData,     setDashData]     = useState(null);
+  const [eventos,      setEventos]      = useState([]);
+  const [scores,       setScores]       = useState([]);
+  const [tab,          setTab]          = useState('todos');
+  const [modal,        setModal]        = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [vistaMode,    setVistaMode]    = useState('eventos'); // 'eventos' | 'partidos'
+  const [filtroP,      setFiltroP]      = useState('todos');
   const refreshTimer = useRef(null);
 
   // ── Auth + role-based redirect ─────────────────────────────────────────────
@@ -104,6 +106,26 @@ export default function HubJugador() {
     proximos,
   }[tab] ?? eventos;
 
+  // Vista partidos — aplanar todos los partidos de todos los eventos
+  const ahora = new Date();
+  const todosPartidos = eventos.flatMap(ev =>
+    (ev.partidos || []).map(p => ({ ...p, _evento: ev }))
+  );
+  const pLive     = todosPartidos.filter(p => p.estado === 'EN_CURSO');
+  const pHoy      = todosPartidos.filter(p => p.estado !== 'EN_CURSO' && esHoy(p.fecha));
+  const pProximos = todosPartidos.filter(p => p.fecha && new Date(p.fecha) > ahora && !esHoy(p.fecha) && p.estado !== 'EN_CURSO');
+  const tabPartidos = {
+    todos:    todosPartidos,
+    vivo:     pLive,
+    hoy:      [...pLive, ...pHoy],
+    proximos: pProximos,
+  }[filtroP] ?? todosPartidos;
+  const partidosFiltrados = [...tabPartidos].sort((a, b) => {
+    if (a.estado === 'EN_CURSO' && b.estado !== 'EN_CURSO') return -1;
+    if (b.estado === 'EN_CURSO' && a.estado !== 'EN_CURSO') return  1;
+    return new Date(a.fecha || 0) - new Date(b.fecha || 0);
+  });
+
   const scoresVivos    = scores.filter(s => ESTADOS_LIVE.has(s.statusCorto || s.estado));
   const scoresRecientes = scores.filter(s => (s.statusCorto || s.estado) === 'FT').slice(0, 4);
 
@@ -126,57 +148,141 @@ export default function HubJugador() {
         {/* ── Layout principal ────────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
-          {/* ── Centro: eventos ─────────────────────────────────────────── */}
+          {/* ── Centro: eventos / partidos ─────────────────────────────── */}
           <div style={{ flex: '1 1 560px', minWidth: 0 }}>
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+
+            {/* Selector de vista */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[
-                { key: 'todos',   label: 'Todos',        badge: eventos.length },
-                { key: 'vivo',    label: '● En vivo',    badge: live.length,  red: true },
-                { key: 'hoy',     label: 'Hoy',          badge: hoy.length },
-                { key: 'proximos',label: 'Próximos',     badge: proximos.length },
-              ].map(t => (
-                <button key={t.key} onClick={() => setTab(t.key)} style={{
-                  background:   tab === t.key ? GREEN : 'transparent',
-                  color:        tab === t.key ? '#0a0d14' : t.red ? '#ef4444' : MUTED,
+                { key: 'eventos',  label: '🏟 EVENTOS',  badge: eventos.length },
+                { key: 'partidos', label: '⚽ PARTIDOS', badge: todosPartidos.length },
+              ].map(m => (
+                <button key={m.key} onClick={() => setVistaMode(m.key)} style={{
+                  background:   vistaMode === m.key ? GREEN : CARD,
+                  color:        vistaMode === m.key ? '#0a0d14' : MUTED,
                   fontFamily:   'Oswald, sans-serif', fontWeight: 700, fontSize: 11,
-                  border:       `1px solid ${tab === t.key ? GREEN : BORDER}`,
-                  borderRadius: 5, padding: '5px 14px', cursor: 'pointer',
-                  letterSpacing: '0.06em', transition: 'all 0.15s',
-                  display: 'flex', alignItems: 'center', gap: 5,
+                  border:       `1px solid ${vistaMode === m.key ? GREEN : BORDER}`,
+                  borderRadius: 6, padding: '6px 18px', cursor: 'pointer',
+                  letterSpacing: '0.07em', transition: 'all 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  {t.label}
-                  {t.badge > 0 && (
-                    <span style={{
-                      background: tab === t.key ? 'rgba(0,0,0,0.2)' : '#8dc63f20',
-                      color: tab === t.key ? '#0a0d14' : GREEN,
-                      fontSize: 9, borderRadius: 10, padding: '1px 5px', fontWeight: 800,
-                    }}>{t.badge}</span>
-                  )}
+                  {m.label}
+                  <span style={{
+                    background: vistaMode === m.key ? 'rgba(0,0,0,0.2)' : '#8dc63f20',
+                    color: vistaMode === m.key ? '#0a0d14' : GREEN,
+                    fontSize: 9, borderRadius: 10, padding: '1px 5px', fontWeight: 800,
+                  }}>{m.badge}</span>
                 </button>
               ))}
             </div>
 
-            {/* Lista de eventos */}
-            {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[1,2,3,4].map(i => (
-                  <div key={i} style={{ background: CARD, borderRadius: 10, height: 110, opacity: 0.4 }} />
-                ))}
-              </div>
-            ) : tabEventos.length === 0 ? (
-              <SinEventos tab={tab} />
+            {vistaMode === 'eventos' ? (
+              <>
+                {/* Tabs eventos */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'todos',    label: 'Todos',      badge: eventos.length },
+                    { key: 'vivo',     label: '● En vivo',  badge: live.length, red: true },
+                    { key: 'hoy',      label: 'Hoy',        badge: hoy.length },
+                    { key: 'proximos', label: 'Próximos',   badge: proximos.length },
+                  ].map(t => (
+                    <button key={t.key} onClick={() => setTab(t.key)} style={{
+                      background:   tab === t.key ? GREEN : 'transparent',
+                      color:        tab === t.key ? '#0a0d14' : t.red ? '#ef4444' : MUTED,
+                      fontFamily:   'Oswald, sans-serif', fontWeight: 700, fontSize: 11,
+                      border:       `1px solid ${tab === t.key ? GREEN : BORDER}`,
+                      borderRadius: 5, padding: '5px 14px', cursor: 'pointer',
+                      letterSpacing: '0.06em', transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}>
+                      {t.label}
+                      {t.badge > 0 && (
+                        <span style={{
+                          background: tab === t.key ? 'rgba(0,0,0,0.2)' : '#8dc63f20',
+                          color: tab === t.key ? '#0a0d14' : GREEN,
+                          fontSize: 9, borderRadius: 10, padding: '1px 5px', fontWeight: 800,
+                        }}>{t.badge}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Lista de eventos */}
+                {loading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[1,2,3,4].map(i => (
+                      <div key={i} style={{ background: CARD, borderRadius: 10, height: 110, opacity: 0.4 }} />
+                    ))}
+                  </div>
+                ) : tabEventos.length === 0 ? (
+                  <SinEventos tab={tab} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {tabEventos.map(ev => (
+                      <EventoRow
+                        key={ev.id}
+                        ev={ev}
+                        onApostar={(sel, cuotas, pId) => setModal({ ev, seleccion: sel, cuotasIniciales: cuotas, partidoId: pId })}
+                        onPredecir={() => setModal({ ev, seleccion: null })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {tabEventos.map(ev => (
-                  <EventoRow
-                    key={ev.id}
-                    ev={ev}
-                    onApostar={(sel, cuotas, pId) => setModal({ ev, seleccion: sel, cuotasIniciales: cuotas, partidoId: pId })}
-                    onPredecir={() => setModal({ ev, seleccion: null })}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Tabs partidos */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'todos',    label: 'Todos',      badge: todosPartidos.length },
+                    { key: 'vivo',     label: '● En vivo',  badge: pLive.length, red: true },
+                    { key: 'hoy',      label: 'Hoy',        badge: pHoy.length },
+                    { key: 'proximos', label: 'Próximos',   badge: pProximos.length },
+                  ].map(t => (
+                    <button key={t.key} onClick={() => setFiltroP(t.key)} style={{
+                      background:   filtroP === t.key ? GREEN : 'transparent',
+                      color:        filtroP === t.key ? '#0a0d14' : t.red ? '#ef4444' : MUTED,
+                      fontFamily:   'Oswald, sans-serif', fontWeight: 700, fontSize: 11,
+                      border:       `1px solid ${filtroP === t.key ? GREEN : BORDER}`,
+                      borderRadius: 5, padding: '5px 14px', cursor: 'pointer',
+                      letterSpacing: '0.06em', transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}>
+                      {t.label}
+                      {t.badge > 0 && (
+                        <span style={{
+                          background: filtroP === t.key ? 'rgba(0,0,0,0.2)' : '#8dc63f20',
+                          color: filtroP === t.key ? '#0a0d14' : GREEN,
+                          fontSize: 9, borderRadius: 10, padding: '1px 5px', fontWeight: 800,
+                        }}>{t.badge}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Grid de partidos estilo Stake */}
+                {loading ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} style={{ background: CARD, borderRadius: 10, height: 160, opacity: 0.4 }} />
+                    ))}
+                  </div>
+                ) : partidosFiltrados.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: MUTED, padding: '48px 0', fontFamily: 'Oswald', fontSize: 13 }}>
+                    No hay partidos en esta categoría
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
+                    {partidosFiltrados.map(p => (
+                      <PartidoCard
+                        key={p.id}
+                        partido={p}
+                        onApostar={(sel, cuotas, pId) => setModal({ ev: p._evento, seleccion: sel, cuotasIniciales: cuotas, partidoId: pId })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -311,6 +417,83 @@ function OddsButtons({ odds, color, onClick }) {
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color }}>{o.v}</div>
         </button>
       ))}
+    </div>
+  );
+}
+
+// ─── Tarjeta de partido estilo Stake ─────────────────────────────────────────
+
+function PartidoCard({ partido, onApostar }) {
+  const isLive = partido.estado === 'EN_CURSO';
+  const odds   = buildOdds(partido);
+  const liga   = partido._evento?.nombre || partido._evento?.campeonato?.nombre || '';
+  const fecha  = fmtFecha(partido.fecha);
+
+  return (
+    <div style={{
+      background: CARD,
+      border: `1px solid ${isLive ? '#ef444440' : BORDER}`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      display: 'flex', flexDirection: 'column', gap: 10,
+      transition: 'border-color 0.15s',
+    }}>
+      {/* Cabecera: liga + badge estado */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{
+          fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%',
+        }}>{liga}</span>
+        {isLive
+          ? <span style={{ background: '#ef4444', color: '#fff', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em' }}>● LIVE</span>
+          : <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED }}>{fecha}</span>
+        }
+      </div>
+
+      {/* Equipos */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'right', lineHeight: 1.2 }}>
+          {partido.equipo_local || 'Local'}
+        </div>
+        <div style={{
+          fontFamily: 'Oswald, sans-serif', fontSize: 11, color: MUTED,
+          padding: '3px 8px', background: '#0f1420', borderRadius: 4,
+          flexShrink: 0,
+        }}>
+          {isLive && partido.marcador_local != null
+            ? `${partido.marcador_local} - ${partido.marcador_visitante}`
+            : 'vs'}
+        </div>
+        <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'left', lineHeight: 1.2 }}>
+          {partido.equipo_visitante || 'Visitante'}
+        </div>
+      </div>
+
+      {/* Cuotas */}
+      {odds.length > 0 ? (
+        <div style={{ display: 'flex', gap: 5 }}>
+          {odds.map(o => (
+            <button key={o.l}
+              onClick={() => onApostar(o.sel, buildCuotas(partido), partido.id)}
+              style={{
+                flex: 1, background: '#0f1420',
+                border: `1px solid ${BORDER}`, borderRadius: 6,
+                padding: '8px 4px', cursor: 'pointer', textAlign: 'center',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = `${GREEN}70`}
+              onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
+            >
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: MUTED }}>{o.l}</div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: GREEN }}>{o.v}</div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: MUTED, padding: '4px 0' }}>
+          Sin cuotas disponibles
+        </div>
+      )}
     </div>
   );
 }

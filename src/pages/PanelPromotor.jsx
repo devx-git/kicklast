@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '../services/authService';
-import api from '../services/api';
+import api, { UPLOADS_BASE } from '../services/api';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import PartidosResultadosTab from '../components/PartidosResultadosTab';
@@ -1141,7 +1141,7 @@ function MetodosPagoTab() {
               {/* QR */}
               <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {c.qr_url ? (
-                  <img src={c.qr_url} alt="QR" style={{ width: 56, height: 56, borderRadius: 6, border: '1px solid #1e2a3a', objectFit: 'contain', background: '#fff' }} />
+                  <img src={`${UPLOADS_BASE}${c.qr_url}`} alt="QR" style={{ width: 56, height: 56, borderRadius: 6, border: '1px solid #1e2a3a', objectFit: 'contain', background: '#fff', padding: 2 }} />
                 ) : (
                   <div style={{ width: 56, height: 56, borderRadius: 6, border: '1px dashed #1e2a3a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>📷</div>
                 )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import api            from '../services/api';
-import { authService } from '../services/authService';
+import api, { UPLOADS_BASE } from '../services/api';
+import { authService }        from '../services/authService';
 import Navbar          from '../components/Navbar';
 import Footer          from '../components/Footer';
 
@@ -286,8 +286,18 @@ export default function Checkout() {
 
                   {selMetodo.qr_url && (
                     <div style={{ marginTop: 14, textAlign: 'center' }}>
-                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 8 }}>QR DE PAGO</div>
-                      <img src={selMetodo.qr_url} alt="QR pago" style={{ maxWidth: 180, borderRadius: 8, border: '1px solid #1e2a3a' }} />
+                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 10 }}>QR DE PAGO</div>
+                      {/* Fondo blanco obligatorio — los lectores QR necesitan contraste alto */}
+                      <div style={{ display: 'inline-block', background: '#fff', padding: 12, borderRadius: 8 }}>
+                        <img
+                          src={`${UPLOADS_BASE}${selMetodo.qr_url}`}
+                          alt="QR pago"
+                          style={{ display: 'block', width: 220, height: 220, objectFit: 'contain' }}
+                        />
+                      </div>
+                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginTop: 8 }}>
+                        Escanea con la cámara de tu celular
+                      </div>
                     </div>
                   )}
                 </div>

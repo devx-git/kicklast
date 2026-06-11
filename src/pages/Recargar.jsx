@@ -46,22 +46,30 @@ export default function Recargar() {
   const [selPaquete,  setSelPaquete]  = useState(null);
   const [loadingPaq,  setLoadingPaq]  = useState(true);
   const [paisAbierto, setPaisAbierto] = useState(false);
+  const [metodos,     setMetodos]     = useState([]);
 
   const paisObj  = PAISES.find(p => p.code === pais) ?? PAISES[0];
   const moneda   = paisObj.moneda;
 
-  /* ── Cargar paquetes con precios locales ─────────────────────────────────── */
+  /* ── Cargar paquetes + métodos del promotor al cambiar país ─────────────── */
   useEffect(() => {
     setLoadingPaq(true);
-    api.get(`/recargas-manual/paquetes?pais=${pais}`)
-      .then(r => setPaquetes(Array.isArray(r.data) ? r.data : PAQUETES_FALLBACK))
-      .catch(() => setPaquetes(PAQUETES_FALLBACK.map(p => ({
-        ...p,
-        moneda,
-        precio_local:     Math.round(p.precio_usd * (TASAS[moneda] ?? 1)),
-        precio_local_fmt: `${SIMBOLOS[moneda] ?? '$'}${Math.round(p.precio_usd * (TASAS[moneda] ?? 1)).toLocaleString('es-CO')}`,
-      }))))
-      .finally(() => setLoadingPaq(false));
+    Promise.allSettled([
+      api.get(`/recargas-manual/paquetes?pais=${pais}`),
+      api.get(`/recargas-manual/metodos?pais=${pais}`),
+    ]).then(([rPaq, rMet]) => {
+      if (rPaq.status === 'fulfilled') {
+        setPaquetes(Array.isArray(rPaq.value.data) ? rPaq.value.data : PAQUETES_FALLBACK);
+      } else {
+        const m = TASAS[moneda] ?? 1;
+        setPaquetes(PAQUETES_FALLBACK.map(p => ({
+          ...p, moneda,
+          precio_local:     Math.round(p.precio_usd * m),
+          precio_local_fmt: `${SIMBOLOS[moneda] ?? '$'}${Math.round(p.precio_usd * m).toLocaleString('es-CO')}`,
+        })));
+      }
+      setMetodos(rMet.status === 'fulfilled' && Array.isArray(rMet.value.data) ? rMet.value.data : []);
+    }).finally(() => setLoadingPaq(false));
   }, [pais]);
 
   /* ── Continuar al checkout ──────────────────────────────────────────────── */
@@ -171,18 +179,20 @@ export default function Recargar() {
             </div>
           )}
 
-          {/* Métodos aceptados */}
+          {/* Métodos aceptados — solo los configurados por el promotor */}
+          {metodos.length > 0 && (
           <div style={{ marginTop: 24, padding: '14px 16px', background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 10 }}>
             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', marginBottom: 10 }}>MÉTODOS DE PAGO ACEPTADOS</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['Transferencia', 'Nequi', 'Daviplata', 'Bancolombia', 'Yape', 'USDT', 'PayPal', 'Código PIN'].map(m => (
-                <span key={m} style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 6, padding: '4px 10px', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#c0cad8' }}>{m}</span>
+              {metodos.map(m => (
+                <span key={m.id} style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 6, padding: '4px 10px', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#c0cad8' }}>{m.metodo_nombre}</span>
               ))}
             </div>
             <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', margin: '10px 0 0' }}>
               ✓ Pagos procesados con verificación manual. Acreditación en máximo 2-4 horas hábiles.
             </p>
           </div>
+          )}
         </div>
 
         {/* ── Columna derecha: resumen ───────────────────────────────────── */}

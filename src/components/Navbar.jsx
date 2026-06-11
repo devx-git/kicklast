@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 
+// Links visibles a visitantes no autenticados (landing)
 const NAV_LINKS = [
   { href: '/', label: 'Predicciones' },
   { href: '/mundial', label: 'Mundial' },
@@ -12,14 +13,42 @@ const NAV_LINKS = [
   { href: '/premio', label: 'Premio' },
 ];
 
+// Links de navegación por rol (cuando el usuario está autenticado)
+const AUTH_NAV = {
+  USUARIO: [
+    { href: '/hub',               label: 'Predicciones' },
+    { href: '/mundial',           label: 'Mundial' },
+    { href: '/en-vivo',          label: 'En Vivo' },
+    { href: '/leaderboard',      label: 'Ranking' },
+    { href: '/mis-predicciones', label: 'Mis Predicciones' },
+    { href: '/mis-apuestas',     label: 'Apuestas' },
+    { href: '/recargar',         label: '⚡ Recargar' },
+  ],
+  PROMOTOR: [
+    { href: '/promotor',              label: '🏟 Mi Panel' },
+    { href: '/promotor/crear-evento', label: '➕ Crear Evento' },
+  ],
+  ADMIN: [
+    { href: '/admin',   label: '⚙ Admin Panel' },
+    { href: '/eventos', label: 'Eventos' },
+  ],
+  SUPER_ADMIN: [
+    { href: '/admin',   label: '⚙ Admin Panel' },
+    { href: '/eventos', label: 'Eventos' },
+  ],
+  DISTRIBUIDOR: [
+    { href: '/distribuidor', label: '📊 Mi Panel' },
+  ],
+};
+
 const USER_MENU = [
-  { href: '/dashboard', label: '👤 Mi Perfil' },
+  { href: '/dashboard',        label: '👤 Mi Perfil' },
   { href: '/mis-predicciones', label: '⚽ Mis Predicciones' },
-  { href: '/mis-apuestas', label: '🎰 Mis Apuestas' },
-  { href: '/movimientos', label: '📊 Movimientos' },
-  { href: '/retiros', label: '💸 Retiros' },
-  { href: '/recargar', label: '⚡ Recargar' },
-  { href: '/canjear-pin', label: '🔑 Canjear PIN' },
+  { href: '/mis-apuestas',     label: '🎰 Mis Apuestas' },
+  { href: '/movimientos',      label: '📊 Movimientos' },
+  { href: '/retiros',          label: '💸 Retiros' },
+  { href: '/recargar',         label: '⚡ Recargar' },
+  { href: '/canjear-pin',      label: '🔑 Canjear PIN' },
 ];
 
 export default function Navbar({ jackpotVal = '$200.000' }) {
@@ -27,6 +56,7 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [isAuth, setIsAuth] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
   const dropRef = useRef(null);
   const bellRef = useRef(null);
   const [notifs, setNotifs] = useState([]);
@@ -40,6 +70,7 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUserName(payload.nombre || payload.email?.split('@')[0] || '');
+        setUserRole(payload.rol || 'USUARIO');
       } catch {}
       api.get('/notificaciones').then(r => {
         const d = r.data;
@@ -47,6 +78,11 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
       }).catch(() => {});
     }
   }, []);
+
+  // Links activos según estado de sesión y rol
+  const navLinks = isAuth ? (AUTH_NAV[userRole] || AUTH_NAV.USUARIO) : NAV_LINKS;
+  // Menú de usuario: ADMIN y PROMOTOR no necesitan el menú de jugador
+  const showUserMenu = isAuth && !['ADMIN', 'SUPER_ADMIN', 'PROMOTOR', 'DISTRIBUIDOR'].includes(userRole);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -69,7 +105,7 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
         </div>
 
         <div className="lk-nav-menu">
-          {NAV_LINKS.map(l => (
+          {navLinks.map(l => (
             <a key={l.href} href={l.href}
               className={`lk-nav-link${isActive(l.href) ? ' active' : ''}`}>
               {l.label}
@@ -166,7 +202,16 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
               </button>
               {dropOpen && (
                 <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, minWidth: 200, zIndex: 500, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
-                  {USER_MENU.map(l => (
+                  {/* Menú completo solo para rol USUARIO */}
+                  {showUserMenu && USER_MENU.map(l => (
+                    <a key={l.href} href={l.href} style={{ display: 'block', padding: '11px 18px', color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #1e2a3a' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      {l.label}
+                    </a>
+                  ))}
+                  {/* Para otros roles: link directo a su panel */}
+                  {!showUserMenu && AUTH_NAV[userRole]?.map(l => (
                     <a key={l.href} href={l.href} style={{ display: 'block', padding: '11px 18px', color: isActive(l.href) ? '#8dc63f' : '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 13, textDecoration: 'none', borderBottom: '1px solid #1e2a3a' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#1e2535'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -207,8 +252,9 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
               <a href="/premio" style={{ textDecoration: 'none' }}><span className="lk-jackpot-val">{jackpotVal}</span></a>
             </div>
 
+            {/* Navegación principal (landing o autenticada según rol) */}
             <div style={{ padding: '8px 0 4px', borderBottom: '1px solid #1e2a3a' }}>
-              {NAV_LINKS.map(l => (
+              {navLinks.map(l => (
                 <a key={l.href} href={l.href}
                   className="lk-mobile-link"
                   style={{ color: isActive(l.href) ? '#8dc63f' : undefined, fontWeight: isActive(l.href) ? 700 : undefined }}>
@@ -217,12 +263,9 @@ export default function Navbar({ jackpotVal = '$200.000' }) {
               ))}
             </div>
 
-            {isAuth && (
+            {/* Menú de cuenta (solo rol USUARIO) */}
+            {showUserMenu && (
               <div style={{ padding: '8px 0 4px' }}>
-                <a href="/hub" className="lk-mobile-link"
-                  style={{ color: isActive('/hub') ? '#8dc63f' : '#c0cad8', fontSize: 13, fontWeight: isActive('/hub') ? 700 : undefined }}>
-                  🏠 Inicio (Hub)
-                </a>
                 <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.1em', padding: '8px 20px 4px' }}>MI CUENTA</div>
                 {USER_MENU.map(l => (
                   <a key={l.href} href={l.href} className="lk-mobile-link"

@@ -1130,6 +1130,181 @@ function MediaTab() {
   );
 }
 
+// ─── PROMOTORES ADMIN TAB ──────────────────────────────────────────────────
+function PromotoresAdminTab() {
+  const [lista,   setLista]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtro,  setFiltro]  = useState('PENDIENTE');
+  const [acting,  setActing]  = useState(null);   // id del que se está procesando
+  const [motivo,  setMotivo]  = useState('');
+  const [modal,   setModal]   = useState(null);   // { tipo: 'rechazar', promotor }
+  const [msg,     setMsg]     = useState(null);
+
+  const cargar = async (est = filtro) => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/auth/promotores?estado=${est}`);
+      setLista(data);
+    } catch {
+      setMsg({ tipo: 'err', texto: 'Error al cargar promotores' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const cambiarFiltro = est => {
+    setFiltro(est);
+    cargar(est);
+  };
+
+  const aprobar = async (p) => {
+    if (!window.confirm(`¿Aprobar a ${p.nombre}?`)) return;
+    setActing(p.id);
+    try {
+      await api.patch(`/auth/promotores/${p.id}/aprobar`);
+      setMsg({ tipo: 'ok', texto: `${p.nombre} aprobado correctamente` });
+      cargar(filtro);
+    } catch (e) {
+      setMsg({ tipo: 'err', texto: e.response?.data?.message || 'Error' });
+    } finally { setActing(null); }
+  };
+
+  const rechazar = async () => {
+    if (!modal) return;
+    setActing(modal.promotor.id);
+    try {
+      await api.patch(`/auth/promotores/${modal.promotor.id}/rechazar`, { motivo });
+      setMsg({ tipo: 'ok', texto: `${modal.promotor.nombre} rechazado` });
+      setModal(null); setMotivo('');
+      cargar(filtro);
+    } catch (e) {
+      setMsg({ tipo: 'err', texto: e.response?.data?.message || 'Error' });
+    } finally { setActing(null); }
+  };
+
+  const ESTADO_BADGE = {
+    PENDIENTE: { bg: '#92400e20', color: '#fbbf24', label: '⏳ PENDIENTE' },
+    APROBADO:  { bg: '#8dc63f20', color: '#8dc63f', label: '✓ APROBADO' },
+    RECHAZADO: { bg: '#1a0a0a',   color: '#f87171', label: '✗ RECHAZADO' },
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, color: '#fff', margin: '0 0 16px' }}>Gestión de Promotores</h2>
+
+      {msg && (
+        <div style={{ background: msg.tipo === 'ok' ? '#8dc63f20' : '#1a0a0a', border: `1px solid ${msg.tipo === 'ok' ? '#8dc63f40' : '#f8717140'}`, borderRadius: 6, padding: '10px 16px', marginBottom: 14, color: msg.tipo === 'ok' ? '#8dc63f' : '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {msg.texto}
+          <button onClick={() => setMsg(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
+      {/* Filtro estado */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['PENDIENTE', 'APROBADO', 'RECHAZADO'].map(est => (
+          <button key={est} onClick={() => cambiarFiltro(est)} style={{
+            background:   filtro === est ? ESTADO_BADGE[est]?.color : 'transparent',
+            color:        filtro === est ? '#0a0d14' : ESTADO_BADGE[est]?.color,
+            border:       `1px solid ${ESTADO_BADGE[est]?.color}60`,
+            borderRadius: 5, padding: '5px 14px', cursor: 'pointer',
+            fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+          }}>
+            {ESTADO_BADGE[est]?.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>Cargando...</div>
+      ) : lista.length === 0 ? (
+        <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '32px', textAlign: 'center', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+          No hay promotores con estado <strong>{filtro}</strong>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {lista.map(p => {
+            const badge = ESTADO_BADGE[p.estado_registro] || ESTADO_BADGE.PENDIENTE;
+            return (
+              <div key={p.id} style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+
+                {/* Info */}
+                <div style={{ flex: '1 1 220px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#fff' }}>{p.nombre}</span>
+                    <span style={{ background: badge.bg, color: badge.color, fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em' }}>{badge.label}</span>
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>{p.email}</div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginTop: 2 }}>
+                    {p.pais}
+                    {p.subdominio && <> · <span style={{ color: '#8dc63f' }}>{p.subdominio}.kicklast.app</span></>}
+                    {p.fecha_aprobacion && <> · Aprobado: {new Date(p.fecha_aprobacion).toLocaleDateString('es-CO')}</>}
+                    {p._count?.eventos > 0 && <> · {p._count.eventos} evento{p._count.eventos !== 1 ? 's' : ''}</>}
+                  </div>
+                  {p.motivo_rechazo && (
+                    <div style={{ marginTop: 4, fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f87171' }}>
+                      Motivo rechazo: {p.motivo_rechazo}
+                    </div>
+                  )}
+                </div>
+
+                {/* Acciones */}
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {p.estado_registro !== 'APROBADO' && (
+                    <button
+                      onClick={() => aprobar(p)}
+                      disabled={acting === p.id}
+                      style={{ background: '#8dc63f20', color: '#8dc63f', border: '1px solid #8dc63f40', borderRadius: 5, padding: '7px 16px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}
+                    >
+                      ✓ APROBAR
+                    </button>
+                  )}
+                  {p.estado_registro !== 'RECHAZADO' && (
+                    <button
+                      onClick={() => setModal({ tipo: 'rechazar', promotor: p })}
+                      disabled={acting === p.id}
+                      style={{ background: '#1a0a0a', color: '#f87171', border: '1px solid #f8717140', borderRadius: 5, padding: '7px 16px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}
+                    >
+                      ✗ RECHAZAR
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal de rechazo con motivo */}
+      {modal?.tipo === 'rechazar' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: '#161e2e', border: '1px solid #f8717140', borderRadius: 10, padding: '28px', maxWidth: 440, width: '100%' }}>
+            <h3 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, color: '#f87171', margin: '0 0 8px' }}>Rechazar promotor</h3>
+            <p style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#c0cad8', margin: '0 0 16px' }}>
+              ¿Rechazar la solicitud de <strong>{modal.promotor.nombre}</strong>?
+            </p>
+            <label style={{ display: 'block', fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 6 }}>MOTIVO (opcional — se enviará por email)</label>
+            <textarea
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              rows={3}
+              placeholder="Ej: El subdominio solicitado ya está en uso. Puedes volver a registrarte con otro nombre."
+              style={{ width: '100%', background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 12px', color: '#fff', fontFamily: 'Roboto, sans-serif', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setModal(null); setMotivo(''); }} style={{ background: 'none', border: '1px solid #1e2a3a', color: '#6b7a8d', borderRadius: 5, padding: '8px 18px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}>CANCELAR</button>
+              <button onClick={rechazar} disabled={acting === modal.promotor.id} style={{ background: '#f8717120', color: '#f87171', border: '1px solid #f8717140', borderRadius: 5, padding: '8px 18px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700 }}>
+                {acting === modal.promotor.id ? 'PROCESANDO...' : '✗ CONFIRMAR RECHAZO'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN ──────────────────────────────────────────────────────────────────
 export default function AdminPanel() {
   const [tab, setTab] = useState('overview');
@@ -1175,17 +1350,19 @@ export default function AdminPanel() {
           <TabBtn active={tab === 'finanzas'} onClick={() => setTab('finanzas')}>FINANZAS</TabBtn>
           <TabBtn active={tab === 'recargas-manual'} onClick={() => setTab('recargas-manual')}>💰 RECARGAS</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
+          <TabBtn active={tab === 'promotores'} onClick={() => setTab('promotores')}>🏢 PROMOTORES</TabBtn>
           <TabBtn active={tab === 'medios'}   onClick={() => setTab('medios')}>🖼 MEDIOS</TabBtn>
         </div>
 
-        {tab === 'overview'  && <OverviewTab />}
-        {tab === 'usuarios'  && <UsuariosTab />}
-        {tab === 'retiros'   && <RetirosTab />}
-        {tab === 'pines'     && <PinesAdminTab />}
-        {tab === 'eventos'   && <EventosAdminTab />}
+        {tab === 'overview'    && <OverviewTab />}
+        {tab === 'usuarios'    && <UsuariosTab />}
+        {tab === 'retiros'     && <RetirosTab />}
+        {tab === 'pines'       && <PinesAdminTab />}
+        {tab === 'eventos'     && <EventosAdminTab />}
         {tab === 'finanzas'        && <FinanzasTab />}
         {tab === 'recargas-manual' && <RecargasManualesTab />}
         {tab === 'partidos'        && <PartidosResultadosTab isAdmin={true} />}
+        {tab === 'promotores'      && <PromotoresAdminTab />}
         {tab === 'medios'          && <MediaTab />}
       </div>
     </div>

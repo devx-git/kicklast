@@ -77,8 +77,7 @@ export default function RegistroPromotor() {
       };
       if (form.subdominio.trim()) payload.subdominio = form.subdominio.trim().toLowerCase().replace(/\s+/g, '-');
 
-      const { data } = await api.post('/auth/registro-promotor', payload);
-      if (data.access_token) localStorage.setItem('token', data.access_token);
+      await api.post('/auth/registro-promotor', payload);
       setSuccess(true);
     } catch (err) {
       const msg = err.response?.data?.message;
@@ -90,15 +89,31 @@ export default function RegistroPromotor() {
 
   if (success) return (
     <div style={{ background: '#0a0d14', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#0f1420', border: '1px solid #8dc63f30', borderRadius: 12, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
-        <h2 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, color: '#8dc63f', margin: '0 0 12px' }}>¡Cuenta de Promotor Creada!</h2>
-        <p style={{ color: '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 14, lineHeight: 1.6 }}>
-          Tu cuenta fue registrada exitosamente. Ahora puedes acceder a tu panel de promotor para crear eventos y gestionar distribuidores.
+      <div style={{ background: '#0f1420', border: '1px solid #8dc63f30', borderRadius: 12, padding: '48px 40px', maxWidth: 500, width: '100%', textAlign: 'center' }}>
+        <div style={{ fontSize: 52, marginBottom: 16 }}>📋</div>
+        <h2 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, color: '#8dc63f', margin: '0 0 12px' }}>¡Solicitud Enviada!</h2>
+        <p style={{ color: '#c0cad8', fontFamily: 'Roboto, sans-serif', fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
+          Tu solicitud como promotor fue recibida correctamente.
+          <br />
+          Un administrador la revisará y te notificaremos por email cuando sea aprobada.
         </p>
-        <a href="/promotor" style={{ display: 'inline-block', marginTop: 24, background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '13px 32px', borderRadius: 6, textDecoration: 'none' }}>
-          IR A MI PANEL →
+        <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '16px 20px', marginBottom: 28, textAlign: 'left' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ fontSize: 18, marginTop: 1 }}>⏳</span>
+            <div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, color: '#fff', marginBottom: 4 }}>Proceso de aprobación</div>
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', lineHeight: 1.6 }}>
+                Revisamos cada solicitud manualmente para garantizar la calidad de la plataforma. El proceso toma entre 24 y 48 horas hábiles.
+              </div>
+            </div>
+          </div>
+        </div>
+        <a href="/" style={{ display: 'inline-block', background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, padding: '13px 32px', borderRadius: 6, textDecoration: 'none' }}>
+          VOLVER AL INICIO
         </a>
+        <p style={{ marginTop: 16, fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#4a5568' }}>
+          ¿Tienes dudas? Escríbenos a <span style={{ color: '#8dc63f' }}>soporte@kicklast.com</span>
+        </p>
       </div>
     </div>
   );

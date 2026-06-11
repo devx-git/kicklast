@@ -33,7 +33,7 @@ function formatFecha(fecha) {
     ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function PredictModal({ ev, seleccion, onClose, partidoId: partidoIdProp = null, partidoCuotas = null, partidoNombre = null }) {
+export default function PredictModal({ ev, seleccion, onClose, partidoId: partidoIdProp = null, partidoCuotas = null, cuotasIniciales = null, partidoNombre = null }) {
   const hasOdds = !!(
     ev.cuota_local || ev.cuota_empate || ev.cuota_visitante ||
     (ev.partidos || []).some(p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS')
@@ -42,8 +42,9 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
   // 'cuota' (abre en modo cuota sin pre-selección), o null (modo gurú)
   const [mode, setMode] = useState(hasOdds && seleccion ? 'cuota' : 'guru');
 
-  // Cuotas locales — se populan al seleccionar un partido con cuotas configuradas
-  const [localCuotas, setLocalCuotas] = useState(partidoCuotas);
+  // Cuotas locales — se populan al seleccionar un partido con cuotas configuradas,
+  // o se pre-cargan desde el Hub cuando se hace clic en un botón 1-X-2 de partido
+  const [localCuotas, setLocalCuotas] = useState(cuotasIniciales || partidoCuotas);
 
   // User balance
   const [saldo, setSaldo]   = useState(null);
@@ -466,6 +467,21 @@ function CuotaSection({ ev, local, visitante, cuotasOverride, sel, setSel, monto
   const cuotaVal = odds.find(o => o.key === sel);
   const est      = cuotaVal ? (monto * Number(cuotaVal.cuota)).toFixed(2) : 0;
   const canSubmit = sel && !submitting && !saldoInsuficiente;
+
+  if (odds.length === 0) {
+    return (
+      <div style={{ background: '#161e2e', borderRadius: 8, padding: 28, textAlign: 'center' }}>
+        <div style={{ fontSize: 28, marginBottom: 10 }}>⚙️</div>
+        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, color: '#f59e0b', marginBottom: 8 }}>
+          CUOTAS NO CONFIGURADAS
+        </div>
+        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d', lineHeight: 1.6 }}>
+          El administrador habilitó las apuestas para este partido pero aún no definió las cuotas (multiplicadores 1-X-2).<br />
+          Mientras tanto puedes usar el modo <strong style={{ color: '#8dc63f' }}>Predicción</strong>.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

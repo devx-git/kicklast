@@ -172,7 +172,7 @@ export default function HubJugador() {
                   <EventoRow
                     key={ev.id}
                     ev={ev}
-                    onApostar={sel => setModal({ ev, seleccion: sel })}
+                    onApostar={(sel, cuotas) => setModal({ ev, seleccion: sel, cuotasIniciales: cuotas })}
                     onPredecir={() => setModal({ ev, seleccion: null })}
                   />
                 ))}
@@ -200,6 +200,7 @@ export default function HubJugador() {
         <PredictModal
           ev={modal.ev}
           seleccion={modal.seleccion}
+          cuotasIniciales={modal.cuotasIniciales || null}
           onClose={() => setModal(null)}
         />
       )}
@@ -300,8 +301,25 @@ function EventoRow({ ev, onApostar, onPredecir }) {
   ].filter(Boolean);
 
   const hasOdds = odds.length > 0;
-  // Partidos con tipo APUESTA o AMBOS (configurados por el admin)
-  const hasApuestaPartidos = !hasOdds && (ev.partidos || []).some(
+
+  // Partido individual con tipo APUESTA/AMBOS y cuotas configuradas
+  const apuestaPartido = !hasOdds
+    ? (ev.partidos || []).find(p =>
+        (p.tipo === 'APUESTA' || p.tipo === 'AMBOS') &&
+        (p.cuota_local || p.cuota_visitante)
+      )
+    : null;
+  const oddsPartido = apuestaPartido ? [
+    apuestaPartido.cuota_local     && { l: '1', v: Number(apuestaPartido.cuota_local).toFixed(2),     sel: 'local' },
+    apuestaPartido.cuota_empate    && { l: 'X', v: Number(apuestaPartido.cuota_empate).toFixed(2),    sel: 'empate' },
+    apuestaPartido.cuota_visitante && { l: '2', v: Number(apuestaPartido.cuota_visitante).toFixed(2), sel: 'visitante' },
+  ].filter(Boolean) : [];
+  const apuestaCuotas = apuestaPartido
+    ? { local: apuestaPartido.cuota_local, empate: apuestaPartido.cuota_empate, visitante: apuestaPartido.cuota_visitante }
+    : null;
+
+  // Botón genérico cuando hay partidos APUESTA pero sin cuotas definidas aún
+  const hasApuestaPartidos = !hasOdds && !apuestaPartido && (ev.partidos || []).some(
     p => p.tipo === 'APUESTA' || p.tipo === 'AMBOS'
   );
 
@@ -352,9 +370,28 @@ function EventoRow({ ev, onApostar, onPredecir }) {
         </div>
       )}
 
-      {/* Botón apuesta cuando las cuotas están en los partidos (no en el evento) */}
+      {/* Cuotas desde el partido (no el evento) */}
+      {oddsPartido.length > 0 && (
+        <div style={{ display: 'flex', gap: 5 }}>
+          {oddsPartido.map(o => (
+            <button key={o.l} onClick={() => onApostar(o.sel, apuestaCuotas)} style={{
+              background: '#0f1420', border: `1px solid ${BORDER}`,
+              borderRadius: 6, padding: '7px 12px', cursor: 'pointer',
+              textAlign: 'center', minWidth: 44, transition: 'border-color 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b60'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}
+            >
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, marginBottom: 1 }}>{o.l}</div>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700, color: '#f59e0b' }}>{o.v}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Botón genérico cuando hay partidos APUESTA pero sin cuotas definidas aún */}
       {hasApuestaPartidos && (
-        <button onClick={() => onApostar('cuota')} style={{
+        <button onClick={() => onApostar('cuota', null)} style={{
           background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
           fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700,
           padding: '9px 14px', borderRadius: 6,

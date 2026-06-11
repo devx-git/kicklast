@@ -66,7 +66,19 @@ function PartidoConfigRow({ partido, onSaved }) {
   const estadoInfo = ESTADO_COLOR[partido.estado] || ESTADO_COLOR.PROGRAMADO;
 
   const guardar = async () => {
-    setSaving(true); setMsg('');
+    setMsg('');
+    // Validar cuotas cuando el tipo requiere apuestas
+    if (tipo !== 'GURU') {
+      if (!cLocal || parseFloat(cLocal) < 1.01) {
+        setMsg('✗ Ingresa la cuota LOCAL (mínimo 1.01)');
+        return;
+      }
+      if (!cVisit || parseFloat(cVisit) < 1.01) {
+        setMsg('✗ Ingresa la cuota VISITANTE (mínimo 1.01)');
+        return;
+      }
+    }
+    setSaving(true);
     const payload = { tipo, visibilidad: vis };
     if (tipo !== 'GURU') {
       if (cLocal)  payload.cuota_local      = parseFloat(cLocal);

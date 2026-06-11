@@ -6,12 +6,12 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 /**
  * Base URL para imágenes subidas desde el admin.
- * En dev: '' (las URLs /uploads/... las proxea Vite)
- * En prod con VITE_API_BASE=https://api.devxsolutions.pro: 'https://api.devxsolutions.pro'
+ * En dev: '' (las URLs /uploads/... las proxea Vite al backend)
+ * En prod: VITE_UPLOADS_BASE apunta directamente al dominio del backend
  */
-export const UPLOADS_BASE = API_BASE.startsWith('http')
-  ? API_BASE.replace(/\/+$/, '')   // quita trailing slash si lo hay
-  : '';                             // relativo → Vite proxy en dev
+export const UPLOADS_BASE =
+  import.meta.env.VITE_UPLOADS_BASE ||
+  (API_BASE.startsWith('http') ? API_BASE.replace(/\/+$/, '') : '');
 
 const api = axios.create({
   baseURL: API_BASE,

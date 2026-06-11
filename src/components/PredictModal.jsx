@@ -42,9 +42,10 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
   // 'cuota' (abre en modo cuota sin pre-selección), o null (modo gurú)
   const [mode, setMode] = useState(hasOdds && seleccion ? 'cuota' : 'guru');
 
-  // Cuotas locales — se populan al seleccionar un partido con cuotas configuradas,
+  // Cuotas y partido local — se populan al seleccionar un partido con cuotas configuradas,
   // o se pre-cargan desde el Hub cuando se hace clic en un botón 1-X-2 de partido
   const [localCuotas, setLocalCuotas] = useState(cuotasIniciales || partidoCuotas);
+  const [localPartidoId, setLocalPartidoId] = useState(null);
 
   // User balance
   const [saldo, setSaldo]   = useState(null);
@@ -121,9 +122,10 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
     setPredicciones(preds);
     setSelections({});
     setGuruMode('AUTOMATICA');
-    // Si el partido tiene cuotas configuradas, usarlas en modo apuesta
+    // Si el partido tiene cuotas configuradas, guardar id y cuotas para el modo apuesta
     if (partido.cuota_local || partido.cuota_empate || partido.cuota_visitante) {
       setLocalCuotas({ local: partido.cuota_local, empate: partido.cuota_empate, visitante: partido.cuota_visitante });
+      setLocalPartidoId(partido.id);
     }
   }
 
@@ -206,9 +208,10 @@ export default function PredictModal({ ev, seleccion, onClose, partidoId: partid
     const resultado_elegido = SEL_MAP[apuestaSel] || apuestaSel;
     setSubmitting(true); setError('');
     try {
+      const pid = partidoIdProp || localPartidoId;
       await api.post('/apuestas', {
         evento_id: ev.id,
-        ...(partidoIdProp && { partido_id: partidoIdProp }),
+        ...(pid && { partido_id: pid }),
         resultado_elegido,
         monto,
       });

@@ -172,7 +172,7 @@ export default function HubJugador() {
                   <EventoRow
                     key={ev.id}
                     ev={ev}
-                    onApostar={(sel, cuotas) => setModal({ ev, seleccion: sel, cuotasIniciales: cuotas })}
+                    onApostar={(sel, cuotas, pId) => setModal({ ev, seleccion: sel, cuotasIniciales: cuotas, partidoId: pId })}
                     onPredecir={() => setModal({ ev, seleccion: null })}
                   />
                 ))}
@@ -201,6 +201,7 @@ export default function HubJugador() {
           ev={modal.ev}
           seleccion={modal.seleccion}
           cuotasIniciales={modal.cuotasIniciales || null}
+          partidoId={modal.partidoId || null}
           onClose={() => setModal(null)}
         />
       )}
@@ -373,7 +374,7 @@ function EventoRow({ ev, onApostar, onPredecir }) {
         {/* Si hay 1 solo partido apuesta: mostrar sus cuotas directamente */}
         {!oddsEvento.length && apuestaPartidos.length === 1 && (
           <OddsButtons odds={buildOdds(apuestaPartidos[0])} color="#f59e0b"
-            onClick={sel => onApostar(sel, buildCuotas(apuestaPartidos[0]))} />
+            onClick={sel => onApostar(sel, buildCuotas(apuestaPartidos[0]), apuestaPartidos[0].id)} />
         )}
 
         {/* Si hay múltiples partidos apuesta: botón expandir */}
@@ -439,7 +440,7 @@ function EventoRow({ ev, onApostar, onPredecir }) {
                   </div>
                   {/* Cuotas */}
                   <OddsButtons odds={pOdds} color="#f59e0b"
-                    onClick={sel => { onApostar(sel, buildCuotas(p)); setExpandido(false); }} />
+                    onClick={sel => { onApostar(sel, buildCuotas(p), p.id); setExpandido(false); }} />
                 </div>
               );
             })}

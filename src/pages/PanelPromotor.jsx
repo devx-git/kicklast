@@ -318,7 +318,10 @@ function PinesTab() {
   const [actioning, setActioning] = useState(null);
   const [msgDist, setMsgDist]   = useState('');
   const [errDist, setErrDist]   = useState('');
-  const [subTab, setSubTab]     = useState('distribuidores'); // 'distribuidores' | 'mispines'
+  const [subTab, setSubTab]     = useState('distribuidores'); // 'distribuidores' | 'mispines' | 'cobros'
+  const [cobros, setCobros]     = useState([]);
+  const [loadingCobros, setLoadingCobros] = useState(true);
+  const [msgCobro, setMsgCobro] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ cantidad: '', valor_unitario: '', notas_promotor: '' });
   const [saving, setSaving] = useState(false);
@@ -352,7 +355,16 @@ function PinesTab() {
     finally { setLoadingDist(false); }
   }, []);
 
-  useEffect(() => { cargar(); cargarDist(); }, [cargar, cargarDist]);
+  const cargarCobros = useCallback(async () => {
+    setLoadingCobros(true);
+    try {
+      const r = await api.get('/pines/promotor/pendientes-cobro');
+      setCobros(Array.isArray(r.data) ? r.data : []);
+    } catch { setCobros([]); }
+    finally { setLoadingCobros(false); }
+  }, []);
+
+  useEffect(() => { cargar(); cargarDist(); cargarCobros(); }, [cargar, cargarDist, cargarCobros]);
 
   const aprobarDist = async (id) => {
     setActioning(id); setErrDist(''); setMsgDist('');
@@ -469,6 +481,7 @@ function PinesTab() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2535', paddingBottom: 10, flexWrap: 'wrap' }}>
         {[
           { key: 'distribuidores', label: 'SOLICITUDES DE DISTRIBUIDORES', badge: pendDist.length, color: '#f59e0b' },
+          { key: 'cobros', label: '💰 COBROS PENDIENTES', badge: cobros.length, color: '#a78bfa' },
           { key: 'mispines', label: 'MIS PINES', badge: null, color: '#8dc63f' },
         ].map(t => (
           <button key={t.key} onClick={() => setSubTab(t.key)} style={{
@@ -500,6 +513,58 @@ function PinesTab() {
           onRechazar={rechazarDist}
           onRefresh={cargarDist}
         />
+      )}
+
+      {/* ── COBROS PENDIENTES (crédito de distribuidores) ── */}
+      {subTab === 'cobros' && (
+        <div>
+          {msgCobro && (
+            <div style={{ background: msgCobro.startsWith('Error') ? '#1a0808' : '#0f1a0f', border: `1px solid ${msgCobro.startsWith('Error') ? '#f8717140' : '#8dc63f40'}`, color: msgCobro.startsWith('Error') ? '#f87171' : '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13, borderRadius: 6, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+              {msgCobro} <button onClick={() => setMsgCobro('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d' }}>
+              Pines solicitados a crédito por tus distribuidores — pago pendiente de recibir.
+            </div>
+            <button onClick={cargarCobros} style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer' }}>↻</button>
+          </div>
+          {loadingCobros && <div style={{ textAlign: 'center', padding: 40, color: '#a78bfa', fontFamily: 'Oswald, sans-serif' }}>Cargando...</div>}
+          {!loadingCobros && cobros.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Sin cobros pendientes.</div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {cobros.map(c => (
+              <div key={c.id} style={{ background: '#0f1420', border: '1px solid #a78bfa30', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                    {c.distribuidor?.nombre || c.distribuidor?.email || '—'}
+                  </div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#a78bfa' }}>
+                    {c.cantidad} pines × ${Number(c.valor_unitario)} = <span style={{ color: '#fff' }}>${Number(c.valor_total)} USD</span>
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 4 }}>
+                    Aprobado el {new Date(c.revisado_en || c.created_at).toLocaleDateString('es-CO')}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('¿Marcar este pago como recibido?')) return;
+                    try {
+                      await api.patch(`/pines/promotor/marcar-pagado-distribuidor/${c.id}`);
+                      setMsgCobro('✓ Pago registrado correctamente');
+                      cargarCobros();
+                    } catch (ex) {
+                      setMsgCobro('Error: ' + (ex.response?.data?.message || 'No se pudo registrar'));
+                    }
+                  }}
+                  style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', border: 'none', borderRadius: 6, padding: '10px 18px', cursor: 'pointer' }}>
+                  ✓ MARCAR PAGADO
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* ── MIS PINES ── */}

@@ -290,15 +290,20 @@ function PinesAdminTab() {
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState(null);
   const [msg, setMsg] = useState('');
+  const [cobros, setCobros] = useState([]);
+  const [subTab, setSubTab] = useState('solicitudes'); // 'solicitudes' | 'cobros'
+  const [msgCobro, setMsgCobro] = useState('');
 
   const cargar = useCallback(() => {
     setLoading(true);
     Promise.allSettled([
       api.get('/pines/admin/solicitudes'),
       api.get('/pines/admin/reporte-global'),
-    ]).then(([s, r]) => {
+      api.get('/pines/admin/pendientes-cobro'),
+    ]).then(([s, r, c]) => {
       if (s.status === 'fulfilled') setSolicitudes(Array.isArray(s.value.data) ? s.value.data : []);
       if (r.status === 'fulfilled') setReporte(r.value.data);
+      if (c.status === 'fulfilled') setCobros(Array.isArray(c.value.data) ? c.value.data : []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -392,8 +397,68 @@ function PinesAdminTab() {
         </div>
       )}
 
-      <MsgBanner msg={msg} onClear={() => setMsg('')} />
-      <DataTable columns={columns} data={flat} pageSize={10} emptyMsg="No hay solicitudes de pines" exportCsv />
+      {/* Subtabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid #1e2535', paddingBottom: 10 }}>
+        {[['solicitudes', 'SOLICITUDES', null], ['cobros', '💰 COBROS A CRÉDITO', cobros.length]].map(([k, l, badge]) => (
+          <button key={k} onClick={() => setSubTab(k)}
+            style={{ background: subTab === k ? '#1e2535' : 'transparent', color: subTab === k ? '#8dc63f' : '#6b7a8d', border: subTab === k ? '1px solid #8dc63f40' : '1px solid transparent', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
+            {l}
+            {badge > 0 && <span style={{ background: '#a78bfa', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px' }}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'solicitudes' && (
+        <>
+          <MsgBanner msg={msg} onClear={() => setMsg('')} />
+          <DataTable columns={columns} data={flat} pageSize={10} emptyMsg="No hay solicitudes de pines" exportCsv />
+        </>
+      )}
+
+      {subTab === 'cobros' && (
+        <div>
+          {msgCobro && (
+            <div style={{ background: msgCobro.startsWith('Error') ? '#1a0808' : '#0f1a0f', border: `1px solid ${msgCobro.startsWith('Error') ? '#f8717140' : '#8dc63f40'}`, color: msgCobro.startsWith('Error') ? '#f87171' : '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13, borderRadius: 6, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+              {msgCobro} <button onClick={() => setMsgCobro('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+          )}
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d', marginBottom: 16 }}>
+            Solicitudes de pines aprobadas a crédito — pago pendiente de recibir del promotor.
+          </div>
+          {cobros.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>Sin cobros pendientes.</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {cobros.map(c => (
+              <div key={c.id} style={{ background: '#0f1420', border: '1px solid #a78bfa30', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                    {c.promotor?.nombre || c.promotor?.email || '—'}
+                  </div>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#a78bfa' }}>
+                    {c.cantidad} pines × ${Number(c.valor_unitario)} = <span style={{ color: '#fff' }}>${Number(c.valor_total)} USD</span>
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginTop: 4 }}>
+                    Aprobado el {new Date(c.revisado_en || c.created_at).toLocaleDateString('es-CO')}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('¿Marcar este pago como recibido?')) return;
+                    try {
+                      await api.patch(`/pines/admin/marcar-pagada/${c.id}`);
+                      setMsgCobro('✓ Pago registrado');
+                      cargar();
+                    } catch (ex) {
+                      setMsgCobro('Error: ' + (ex.response?.data?.message || 'No se pudo registrar'));
+                    }
+                  }}
+                  style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', border: 'none', borderRadius: 6, padding: '10px 18px', cursor: 'pointer' }}>
+                  ✓ MARCAR PAGADO
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

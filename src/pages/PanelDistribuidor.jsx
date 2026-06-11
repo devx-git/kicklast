@@ -506,6 +506,7 @@ function SolicitarPinesTab() {
   const [custom, setCustom] = useState({ cantidad: '', valor: '1' });
   const [nota, setNota] = useState('');
   const [referencia, setReferencia] = useState('');
+  const [tipoPago, setTipoPago] = useState('INMEDIATO');
   const [comprobante, setComprobante] = useState(null); // { dataUrl, nombre }
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -552,10 +553,11 @@ function SolicitarPinesTab() {
         notas:           nota       || undefined,
         referencia_pago: referencia || undefined,
         comprobante_url: comprobante?.dataUrl || undefined,
+        tipo_pago:       tipoPago,
       });
       setMsg(`✓ Solicitud enviada — ${cantidad} pines × $${valor} = $${cantidad * valor} USD. Tu promotor recibirá la notificación con tu comprobante.`);
       setModo(null); setPaqueteSel(null); setCustom({ cantidad: '', valor: '1' });
-      setNota(''); setReferencia(''); setComprobante(null);
+      setNota(''); setReferencia(''); setTipoPago('INMEDIATO'); setComprobante(null);
       cargar();
     } catch (ex) {
       const m = ex.response?.data?.message;
@@ -650,9 +652,23 @@ function SolicitarPinesTab() {
             </div>
           )}
 
+          {/* Tipo de pago */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={LABEL}>TIPO DE PAGO</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[['INMEDIATO', '💳 Pago inmediato', 'Incluyes comprobante ahora'], ['CREDITO', '📋 A crédito / plazo', 'Pagas después con tu promotor']].map(([v, l, sub]) => (
+                <button key={v} type="button" onClick={() => setTipoPago(v)}
+                  style={{ flex: 1, background: tipoPago === v ? (v === 'CREDITO' ? '#1a1230' : '#0f1a0f') : '#161e2e', border: `2px solid ${tipoPago === v ? (v === 'CREDITO' ? '#a78bfa' : '#8dc63f') : '#1e2a3a'}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: tipoPago === v ? (v === 'CREDITO' ? '#a78bfa' : '#8dc63f') : '#6b7a8d', marginBottom: 2 }}>{l}</div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568' }}>{sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Referencia de pago */}
           <div style={{ marginBottom: 14 }}>
-            <label style={LABEL}>REFERENCIA / CÓDIGO DE TRANSFERENCIA <span style={{ color: '#f59e0b' }}>*</span></label>
+            <label style={LABEL}>REFERENCIA / CÓDIGO DE TRANSFERENCIA {tipoPago === 'INMEDIATO' && <span style={{ color: '#f59e0b' }}>*</span>}</label>
             <input type="text" value={referencia} onChange={e => setReferencia(e.target.value)}
               placeholder="Ej: REF-2024-0012345 / código de la transacción..."
               style={{ ...INPUT, borderColor: referencia ? '#8dc63f50' : '#1e2a3a' }} />

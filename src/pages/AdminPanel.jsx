@@ -473,6 +473,7 @@ function EventosAdminTab() {
   const [reasigModal,  setReasigModal]  = useState(null);  // { id, nombre, promotor_id }
   const [promotores,   setPromotores]   = useState([]);
   const [selPromotor,  setSelPromotor]  = useState('');
+  const [confirmModal, setConfirmModal] = useState(null);  // { icon, titulo, desc, efectos, color, btnLabel, onConfirm }
 
   const cargar = useCallback(() => {
     setLoading(true);
@@ -506,37 +507,79 @@ function EventosAdminTab() {
     } finally { setActioning(null); }
   };
 
-  const liquidar = async (id) => {
-    if (!window.confirm('¿Liquidar este evento? Esta acción es irreversible.')) return;
-    setActioning(id);
-    try {
-      await api.post(`/eventos/${id}/liquidar`);
-      setMsg('✓ Evento liquidado');
-      cargar();
-    } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al liquidar'}`); }
-    finally { setActioning(null); }
+  const ejecutar = async (fn) => {
+    setConfirmModal(null);
+    await fn();
   };
 
-  const cerrar = async (id) => {
-    setActioning(id + 'c');
-    try {
-      await api.post(`/eventos/${id}/cerrar-inscripciones`);
-      setMsg('✓ Inscripciones cerradas');
-      cargar();
-    } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error'}`); }
-    finally { setActioning(null); }
-  };
+  const pedirCerrar = (row) => setConfirmModal({
+    icon:     '🔒',
+    color:    '#f59e0b',
+    titulo:   'Cerrar inscripciones',
+    evento:   row._nombre,
+    efectos: [
+      'Los usuarios ya no podrán inscribirse ni realizar predicciones nuevas.',
+      'Las predicciones existentes quedan guardadas y serán evaluadas.',
+      'Paso previo obligatorio antes de liquidar el evento.',
+      'Se puede revertir mientras no se liquide.',
+    ],
+    btnLabel: 'CERRAR INSCRIPCIONES',
+    onConfirm: async () => {
+      setActioning(row.id + 'c');
+      try {
+        await api.post(`/eventos/${row.id}/cerrar-inscripciones`);
+        setMsg('✓ Inscripciones cerradas');
+        cargar();
+      } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error'}`); }
+      finally { setActioning(null); }
+    },
+  });
 
-  const eliminar = async (id, nombre) => {
-    if (!window.confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
-    setActioning(id + 'd');
-    try {
-      await api.delete(`/eventos/${id}`);
-      setMsg(`✓ Evento "${nombre}" eliminado`);
-      cargar();
-    } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al eliminar'}`); }
-    finally { setActioning(null); }
-  };
+  const pedirLiquidar = (row) => setConfirmModal({
+    icon:     '💰',
+    color:    '#f87171',
+    titulo:   'Liquidar evento',
+    evento:   row._nombre,
+    efectos: [
+      'Se evaluarán todas las predicciones y se calcularán los ganadores.',
+      'Se distribuirá el pozo acumulado entre los participantes correctos.',
+      'Se aplicarán las comisiones de casa y plataforma configuradas.',
+      '⚠️ Esta acción es irreversible y no se puede deshacer.',
+    ],
+    btnLabel: 'LIQUIDAR EVENTO',
+    onConfirm: async () => {
+      setActioning(row.id);
+      try {
+        await api.post(`/eventos/${row.id}/liquidar`);
+        setMsg('✓ Evento liquidado correctamente');
+        cargar();
+      } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al liquidar'}`); }
+      finally { setActioning(null); }
+    },
+  });
+
+  const pedirEliminar = (row) => setConfirmModal({
+    icon:     '🗑',
+    color:    '#f87171',
+    titulo:   'Eliminar evento',
+    evento:   row._nombre,
+    efectos: [
+      'Se eliminarán todos los partidos y configuraciones del evento.',
+      'Los movimientos financieros históricos se conservan (sin FK al evento).',
+      'Solo es posible si el evento no tiene predicciones de usuarios.',
+      '⛔ Esta acción es permanente e irreversible.',
+    ],
+    btnLabel: 'ELIMINAR EVENTO',
+    onConfirm: async () => {
+      setActioning(row.id + 'd');
+      try {
+        await api.delete(`/eventos/${row.id}`);
+        setMsg(`✓ Evento "${row._nombre}" eliminado`);
+        cargar();
+      } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al eliminar'}`); }
+      finally { setActioning(null); }
+    },
+  });
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando eventos...</div>;
 
@@ -598,13 +641,13 @@ function EventosAdminTab() {
             🔄 PROMOTOR
           </button>
           {!row.cerrado && row._estado !== 'LIQUIDADO' && (
-            <button onClick={() => cerrar(row.id)} disabled={!!actioning} style={{ background: '#1e2535', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f59e0b30', cursor: 'pointer' }}>CERRAR</button>
+            <button onClick={() => pedirCerrar(row)} disabled={!!actioning} style={{ background: '#1e2535', color: '#f59e0b', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f59e0b30', cursor: 'pointer' }}>CERRAR</button>
           )}
           {row.cerrado && row._estado !== 'LIQUIDADO' && (
-            <button onClick={() => liquidar(row.id)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>LIQUIDAR</button>
+            <button onClick={() => pedirLiquidar(row)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>LIQUIDAR</button>
           )}
           {row._estado !== 'LIQUIDADO' && (
-            <button onClick={() => eliminar(row.id, row._nombre)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>🗑 BORRAR</button>
+            <button onClick={() => pedirEliminar(row)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>🗑 BORRAR</button>
           )}
         </div>
       ),
@@ -626,6 +669,59 @@ function EventosAdminTab() {
           eventoNombre={configEvento.nombre}
           onClose={() => setConfigEvento(null)}
         />
+      )}
+
+      {/* Modal de confirmación de acción */}
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.80)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+          <div style={{ background: '#0f1420', border: `1px solid ${confirmModal.color}40`, borderRadius: 12, padding: '28px 28px 24px', maxWidth: 460, width: '100%', boxShadow: `0 8px 40px ${confirmModal.color}15` }}>
+
+            {/* Icono + título */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <span style={{ fontSize: 28, lineHeight: 1 }}>{confirmModal.icon}</span>
+              <h3 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, color: confirmModal.color, margin: 0, letterSpacing: '0.03em' }}>
+                {confirmModal.titulo}
+              </h3>
+            </div>
+
+            {/* Evento afectado */}
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 20 }}>
+              Evento: <strong style={{ color: '#c0cad8' }}>{confirmModal.evento}</strong>
+            </div>
+
+            {/* Descripción de efectos */}
+            <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px', marginBottom: 22 }}>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 10 }}>
+                ¿QUÉ HACE ESTA ACCIÓN?
+              </div>
+              <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {confirmModal.efectos.map((e, i) => (
+                  <li key={i} style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: e.startsWith('⚠️') || e.startsWith('⛔') ? confirmModal.color : '#c0cad8', lineHeight: 1.5 }}>
+                    {e}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Botones */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setConfirmModal(null)}
+                style={{ background: 'transparent', border: '1px solid #1e2a3a', color: '#6b7a8d', borderRadius: 6, padding: '10px 22px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em' }}
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={() => ejecutar(confirmModal.onConfirm)}
+                style={{ background: `${confirmModal.color}18`, border: `1px solid ${confirmModal.color}60`, color: confirmModal.color, borderRadius: 6, padding: '10px 22px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${confirmModal.color}30`; }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${confirmModal.color}18`; }}
+              >
+                {confirmModal.btnLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal reasignación de promotor */}

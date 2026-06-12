@@ -615,28 +615,56 @@ function EventosAdminTab() {
     },
   });
 
-  const pedirEliminar = (row) => setConfirmModal({
-    icon:     '🗑',
-    color:    '#f87171',
-    titulo:   'Eliminar evento',
-    evento:   row._nombre,
-    efectos: [
-      'Se eliminarán todos los partidos y configuraciones del evento.',
-      'Los movimientos financieros históricos se conservan (sin FK al evento).',
-      'Solo es posible si el evento no tiene predicciones de usuarios.',
-      '⛔ Esta acción es permanente e irreversible.',
-    ],
-    btnLabel: 'ELIMINAR EVENTO',
-    onConfirm: async () => {
-      setActioning(row.id + 'd');
-      try {
-        await api.delete(`/eventos/${row.id}`);
-        setMsg(`✓ Evento "${row._nombre}" eliminado`);
-        cargar();
-      } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al eliminar'}`); }
-      finally { setActioning(null); }
-    },
-  });
+  const pedirEliminar = async (row) => {
+    let resumen = null;
+    try {
+      const { data } = await api.get(`/eventos/${row.id}/predicciones-resumen`);
+      resumen = data;
+    } catch { /* continúa sin resumen */ }
+
+    const total       = resumen?.total ?? 0;
+    const isLiquidado = row._estado === 'LIQUIDADO';
+    const canDelete   = total === 0 || isLiquidado;
+
+    const efectos = total === 0
+      ? [
+          'Se eliminarán todos los partidos y configuraciones del evento.',
+          'Los movimientos financieros históricos se conservan (desvinculados del evento).',
+          '⛔ Esta acción es permanente e irreversible.',
+        ]
+      : isLiquidado
+      ? [
+          `${total} predicción(es) resueltas — ganancias ya acreditadas a sus cuentas.`,
+          'Historial de movimientos y ganancias se conserva en las cuentas de cada usuario.',
+          'Las predicciones históricas del evento serán eliminadas junto con él.',
+          '⛔ Esta acción es permanente e irreversible.',
+        ]
+      : [
+          `⚠️ El evento tiene ${total} predicción(es) activas de usuarios reales.`,
+          '⛔ No se puede eliminar un evento con predicciones sin resolver.',
+          'Primero cierra el evento y luego ejecútalo con LIQUIDAR.',
+        ];
+
+    setConfirmModal({
+      icon:         '🗑',
+      color:        '#f87171',
+      titulo:       'Eliminar evento',
+      evento:       row._nombre,
+      efectos,
+      participantes: resumen?.participantes || [],
+      canDelete,
+      btnLabel:     'ELIMINAR EVENTO',
+      onConfirm: async () => {
+        setActioning(row.id + 'd');
+        try {
+          await api.delete(`/eventos/${row.id}`);
+          setMsg(`✓ Evento "${row._nombre}" eliminado`);
+          cargar();
+        } catch (ex) { setMsg(`✗ ${ex.response?.data?.message || 'Error al eliminar'}`); }
+        finally { setActioning(null); }
+      },
+    });
+  };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando eventos...</div>;
 
@@ -729,7 +757,7 @@ function EventosAdminTab() {
       {/* Modal de confirmación de acción */}
       {confirmModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.80)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
-          <div style={{ background: '#0f1420', border: `1px solid ${confirmModal.color}40`, borderRadius: 12, padding: '28px 28px 24px', maxWidth: 460, width: '100%', boxShadow: `0 8px 40px ${confirmModal.color}15` }}>
+          <div style={{ background: '#0f1420', border: `1px solid ${confirmModal.color}40`, borderRadius: 12, padding: '28px 28px 24px', maxWidth: 500, width: '100%', boxShadow: `0 8px 40px ${confirmModal.color}15`, maxHeight: '90vh', overflowY: 'auto' }}>
 
             {/* Icono + título */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -740,9 +768,38 @@ function EventosAdminTab() {
             </div>
 
             {/* Evento afectado */}
-            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 20 }}>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 16 }}>
               Evento: <strong style={{ color: '#c0cad8' }}>{confirmModal.evento}</strong>
             </div>
+
+            {/* Lista de participantes (solo en BORRAR) */}
+            {confirmModal.participantes?.length > 0 && (
+              <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 8 }}>
+                  PARTICIPANTES CON PREDICCIONES ({confirmModal.participantes.length})
+                </div>
+                <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {confirmModal.participantes.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: '#0f1420', borderRadius: 5 }}>
+                      <div>
+                        <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#c0cad8', fontWeight: 600 }}>{p.nombre}</span>
+                        <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginLeft: 6 }}>{p.email}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d' }}>{p.aciertos} aciertos</span>
+                        {p.ganancia > 0 && (
+                          <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#8dc63f', fontWeight: 700 }}>+{Number(p.ganancia).toLocaleString('es-CO')} CR</span>
+                        )}
+                        <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                          background: p.estado === 'GANADOR' ? '#8dc63f20' : p.estado === 'PENDIENTE' ? '#f59e0b20' : '#1e2535',
+                          color:      p.estado === 'GANADOR' ? '#8dc63f'   : p.estado === 'PENDIENTE' ? '#f59e0b'   : '#6b7a8d',
+                        }}>{p.estado}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Descripción de efectos */}
             <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px', marginBottom: 22 }}>
@@ -766,14 +823,17 @@ function EventosAdminTab() {
               >
                 CANCELAR
               </button>
-              <button
-                onClick={() => ejecutar(confirmModal.onConfirm)}
-                style={{ background: `${confirmModal.color}18`, border: `1px solid ${confirmModal.color}60`, color: confirmModal.color, borderRadius: 6, padding: '10px 22px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${confirmModal.color}30`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = `${confirmModal.color}18`; }}
-              >
-                {confirmModal.btnLabel}
-              </button>
+              {/* Ocultar botón confirmar si canDelete es false explícitamente */}
+              {confirmModal.canDelete !== false && (
+                <button
+                  onClick={() => ejecutar(confirmModal.onConfirm)}
+                  style={{ background: `${confirmModal.color}18`, border: `1px solid ${confirmModal.color}60`, color: confirmModal.color, borderRadius: 6, padding: '10px 22px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${confirmModal.color}30`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `${confirmModal.color}18`; }}
+                >
+                  {confirmModal.btnLabel}
+                </button>
+              )}
             </div>
           </div>
         </div>

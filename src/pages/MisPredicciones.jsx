@@ -8,9 +8,10 @@ import { formatCreditos } from '../utils/currency';
 
 const ESTADO_BADGE = {
   PENDIENTE:        { label: 'PENDIENTE',      color: '#6b7a8d',  bg: '#ffffff10' },
-  GANADORA_TOTAL:   { label: 'GANADORA TOTAL', color: '#8dc63f',  bg: 'rgba(141,198,63,0.12)' },
+  GANADORA_TOTAL:   { label: 'GANÓ ✓',         color: '#8dc63f',  bg: 'rgba(141,198,63,0.12)' },
   GANADORA_PARCIAL: { label: 'PARCIAL',        color: '#f59e0b',  bg: 'rgba(245,158,11,0.12)' },
-  GANADA:           { label: 'GANADA',         color: '#8dc63f',  bg: 'rgba(141,198,63,0.12)' },
+  GANADA:           { label: 'GANÓ ✓',         color: '#8dc63f',  bg: 'rgba(141,198,63,0.12)' },
+  PERDEDORA:        { label: 'PERDIDA',        color: '#f87171',  bg: 'rgba(239,68,68,0.1)'   },
   PERDIDA:          { label: 'PERDIDA',        color: '#f87171',  bg: 'rgba(239,68,68,0.1)'   },
   ANULADA:          { label: 'ANULADA',        color: '#6b7a8d',  bg: '#ffffff08'              },
 };

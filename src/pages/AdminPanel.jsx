@@ -1055,6 +1055,21 @@ function RecargasManualesTab() {
                   {sol.cuenta?.metodo_nombre || sol.metodo} · {new Date(sol.created_at).toLocaleString('es-CO')}
                   {sol.referencia_pago && <> · Ref: <span style={{ color: '#c0cad8' }}>{sol.referencia_pago}</span></>}
                 </div>
+                {/* Origen: promotor o usuario habitual */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {sol.promotor ? (
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid #a78bfa30', borderRadius: 4, padding: '2px 8px' }}>
+                      🏢 VÍA PROMOTOR: {sol.promotor.nombre || sol.promotor.email}
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, background: 'rgba(0,212,255,0.08)', color: '#00d4ff', border: '1px solid #00d4ff25', borderRadius: 4, padding: '2px 8px' }}>
+                      👤 USUARIO DIRECTO
+                    </span>
+                  )}
+                  <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, background: '#1e2535', color: '#6b7a8d', borderRadius: 4, padding: '2px 8px' }}>
+                    RECARGA MANUAL
+                  </span>
+                </div>
                 {sol.notas_usuario && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#a78bfa', marginTop: 4 }}>Nota: {sol.notas_usuario}</div>}
                 {sol.notas_admin && <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f87171', marginTop: 4 }}>Admin: {sol.notas_admin}</div>}
               </div>
@@ -1603,6 +1618,198 @@ function PromotoresAdminTab() {
   );
 }
 
+// ─── RECARGAS DISTRIBUIDORES ───────────────────────────────────────────────
+function RecargasDistribuidorTab() {
+  const [data,    setData]    = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pagina,  setPagina]  = useState(1);
+  const [total,   setTotal]   = useState(0);
+
+  const cargar = (p = 1) => {
+    setLoading(true);
+    api.get(`/recargas?limite=30&pagina=${p}`)
+      .then(r => {
+        const res = r.data;
+        setData(Array.isArray(res.data) ? res.data : []);
+        setTotal(res.total ?? 0);
+        setPagina(res.pagina ?? 1);
+      })
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(1); }, []);
+
+  const TIPO_BADGE = { APROBADA: '#8dc63f', PENDIENTE: '#f59e0b', RECHAZADA: '#f87171' };
+
+  const flat = data.map(r => ({
+    ...r,
+    _usuario:     r.usuario?.nombre || r.usuario?.email || '—',
+    _distribuidor: r.distribuidor ? `${r.distribuidor.nombre} (${r.distribuidor.email})` : '— Directo',
+    _promotor:    r.promotor?.nombre || '—',
+    _creditos:    Number(r.creditos || 0),
+    _comision:    Number(r.comision || 0),
+    _estado:      r.estado || 'APROBADA',
+    _fecha:       r.creado_en ? new Date(r.creado_en).toLocaleString('es-CO') : '—',
+  }));
+
+  const columns = [
+    { key: '_usuario',     label: 'USUARIO',      sortable: true },
+    {
+      key: '_distribuidor', label: 'DISTRIBUIDOR', sortable: true,
+      render: (val) => val === '— Directo'
+        ? <span style={{ color: '#00d4ff', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>👤 Directo</span>
+        : <span style={{ color: '#a78bfa', fontFamily: 'Roboto, sans-serif', fontSize: 11 }}>🏪 {val}</span>,
+    },
+    { key: '_promotor',    label: 'PROMOTOR',     sortable: true },
+    {
+      key: '_creditos', label: 'CRÉDITOS', sortable: true,
+      render: (val) => <span style={{ fontFamily: 'Oswald, sans-serif', fontWeight: 700, color: '#8dc63f' }}>{Number(val).toLocaleString('es-CO')} cr</span>,
+    },
+    {
+      key: '_comision', label: 'COMISIÓN', sortable: true,
+      render: (val) => <span style={{ fontFamily: 'monospace', color: '#f59e0b' }}>{Number(val).toLocaleString('es-CO')} cr</span>,
+    },
+    {
+      key: '_estado', label: 'ESTADO', sortable: true,
+      render: (val) => <Badge color={TIPO_BADGE[val] || '#6b7a8d'}>{val}</Badge>,
+    },
+    { key: '_fecha',       label: 'FECHA',        sortable: true },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12 }}>
+          Total: <strong style={{ color: '#fff' }}>{total}</strong> recargas
+        </div>
+        <button onClick={() => cargar(1)} style={{ background: 'transparent', border: '1px solid #2a3550', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, padding: '6px 14px', borderRadius: 6, cursor: 'pointer' }}>↻ ACTUALIZAR</button>
+      </div>
+      {loading
+        ? <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando recargas...</div>
+        : <DataTable columns={columns} data={flat} pageSize={20} emptyMsg="Sin recargas registradas" exportCsv />
+      }
+    </div>
+  );
+}
+
+// ─── ADMIN PERFIL TAB ──────────────────────────────────────────────────────
+function AdminPerfilTab() {
+  const [perfil, setPerfil]         = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [savingPwd, setSavingPwd]   = useState(false);
+  const [msg, setMsg]               = useState(null); // { tipo: 'ok'|'err', texto }
+  const [nombre, setNombre]         = useState('');
+  const [email, setEmail]           = useState('');
+  const [pwdActual, setPwdActual]   = useState('');
+  const [pwdNueva, setPwdNueva]     = useState('');
+  const [pwdConf, setPwdConf]       = useState('');
+  const [showPwd, setShowPwd]       = useState(false);
+
+  useEffect(() => {
+    api.get('/admin/perfil')
+      .then(r => { setPerfil(r.data); setNombre(r.data.nombre || ''); setEmail(r.data.email || ''); })
+      .catch(() => setMsg({ tipo: 'err', texto: 'No se pudo cargar el perfil' }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const guardarPerfil = async e => {
+    e.preventDefault();
+    setSaving(true); setMsg(null);
+    try {
+      const { data } = await api.patch('/admin/perfil', { nombre, email });
+      setPerfil(data); setNombre(data.nombre); setEmail(data.email);
+      setMsg({ tipo: 'ok', texto: '✓ Perfil actualizado. Si cambiaste el email, vuelve a iniciar sesión.' });
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setMsg({ tipo: 'err', texto: Array.isArray(m) ? m.join(', ') : m || 'Error al guardar' });
+    } finally { setSaving(false); }
+  };
+
+  const cambiarContrasena = async e => {
+    e.preventDefault();
+    if (pwdNueva !== pwdConf) { setMsg({ tipo: 'err', texto: 'Las contraseñas nuevas no coinciden' }); return; }
+    if (pwdNueva.length < 6)  { setMsg({ tipo: 'err', texto: 'La nueva contraseña debe tener al menos 6 caracteres' }); return; }
+    setSavingPwd(true); setMsg(null);
+    try {
+      const { data } = await api.patch('/admin/perfil/cambiar-contrasena', { contrasena_actual: pwdActual, nueva_contrasena: pwdNueva });
+      setMsg({ tipo: 'ok', texto: data.mensaje || '✓ Contraseña cambiada' });
+      setPwdActual(''); setPwdNueva(''); setPwdConf('');
+    } catch (ex) {
+      const m = ex.response?.data?.message;
+      setMsg({ tipo: 'err', texto: Array.isArray(m) ? m.join(', ') : m || 'Error al cambiar contraseña' });
+    } finally { setSavingPwd(false); }
+  };
+
+  const INP = { width: '100%', background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 12px', color: '#e2e8f0', fontFamily: 'Roboto, sans-serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+  const LBL = { display: 'block', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 6 };
+
+  if (loading) return <div style={{ padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif', textAlign: 'center' }}>Cargando perfil...</div>;
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      {msg && (
+        <div style={{ background: msg.tipo === 'ok' ? '#0f1a0f' : '#1a0808', border: `1px solid ${msg.tipo === 'ok' ? '#8dc63f40' : '#f8717140'}`, color: msg.tipo === 'ok' ? '#8dc63f' : '#f87171', fontFamily: 'Roboto, sans-serif', fontSize: 13, borderRadius: 6, padding: '10px 14px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {msg.texto}
+          <button onClick={() => setMsg(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      {/* Datos del perfil */}
+      <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px', marginBottom: 20 }}>
+        <div style={{ color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #1e2a3a' }}>DATOS DEL ADMINISTRADOR</div>
+        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d', marginBottom: 16 }}>
+          ⚠️ Si cambias el email, deberás volver a iniciar sesión con el nuevo correo.
+          El email del admin también recibe todas las notificaciones del sistema.
+        </div>
+        <form onSubmit={guardarPerfil} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={LBL}>NOMBRE</label>
+            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del administrador" style={INP} />
+          </div>
+          <div>
+            <label style={LBL}>EMAIL (notificaciones + login)</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="admin@ejemplo.com" style={INP} />
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 4 }}>
+              A este correo llegan: registros, recargas, solicitudes de pines y promotores
+            </div>
+          </div>
+          <button type="submit" disabled={saving} style={{ background: saving ? '#1e2535' : '#f87171', color: saving ? '#6b7a8d' : '#fff', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '11px 0', borderRadius: 6, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}>
+            {saving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          </button>
+        </form>
+      </div>
+
+      {/* Cambiar contraseña */}
+      <div style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '20px 24px' }}>
+        <div style={{ color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 12, letterSpacing: '0.1em', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #1e2a3a' }}>CAMBIAR CONTRASEÑA</div>
+        <form onSubmit={cambiarContrasena} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={LBL}>CONTRASEÑA ACTUAL</label>
+            <input type={showPwd ? 'text' : 'password'} value={pwdActual} onChange={e => setPwdActual(e.target.value)} required placeholder="••••••••" style={INP} autoComplete="current-password" />
+          </div>
+          <div>
+            <label style={LBL}>NUEVA CONTRASEÑA</label>
+            <input type={showPwd ? 'text' : 'password'} value={pwdNueva} onChange={e => setPwdNueva(e.target.value)} required placeholder="Mínimo 6 caracteres" style={INP} autoComplete="new-password" />
+          </div>
+          <div>
+            <label style={LBL}>CONFIRMAR NUEVA CONTRASEÑA</label>
+            <input type={showPwd ? 'text' : 'password'} value={pwdConf} onChange={e => setPwdConf(e.target.value)} required placeholder="Repetir contraseña" style={INP} autoComplete="new-password" />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
+            <input type="checkbox" checked={showPwd} onChange={e => setShowPwd(e.target.checked)} />
+            Mostrar contraseñas
+          </label>
+          <button type="submit" disabled={savingPwd} style={{ background: savingPwd ? '#1e2535' : '#1a0808', color: savingPwd ? '#6b7a8d' : '#f87171', border: '1px solid #f8717140', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, padding: '11px 0', borderRadius: 6, cursor: savingPwd ? 'not-allowed' : 'pointer', letterSpacing: '0.06em' }}>
+            {savingPwd ? 'CAMBIANDO...' : '🔐 CAMBIAR CONTRASEÑA'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN ──────────────────────────────────────────────────────────────────
 export default function AdminPanel() {
   const [tab, setTab] = useState('overview');
@@ -1646,10 +1853,12 @@ export default function AdminPanel() {
           <TabBtn active={tab === 'pines'} onClick={() => setTab('pines')}>PINES</TabBtn>
           <TabBtn active={tab === 'eventos'} onClick={() => setTab('eventos')}>EVENTOS</TabBtn>
           <TabBtn active={tab === 'finanzas'} onClick={() => setTab('finanzas')}>FINANZAS</TabBtn>
-          <TabBtn active={tab === 'recargas-manual'} onClick={() => setTab('recargas-manual')}>💰 RECARGAS</TabBtn>
+          <TabBtn active={tab === 'recargas-manual'} onClick={() => setTab('recargas-manual')}>💰 RECARGAS MANUALES</TabBtn>
+          <TabBtn active={tab === 'recargas-dist'}   onClick={() => setTab('recargas-dist')}>🏪 RECARGAS DIST.</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
           <TabBtn active={tab === 'promotores'} onClick={() => setTab('promotores')}>🏢 PROMOTORES</TabBtn>
           <TabBtn active={tab === 'medios'}   onClick={() => setTab('medios')}>🖼 MEDIOS</TabBtn>
+          <TabBtn active={tab === 'mi-perfil'} onClick={() => setTab('mi-perfil')}>👤 MI PERFIL</TabBtn>
         </div>
 
         {tab === 'overview'    && <OverviewTab />}
@@ -1659,9 +1868,11 @@ export default function AdminPanel() {
         {tab === 'eventos'     && <EventosAdminTab />}
         {tab === 'finanzas'        && <FinanzasTab />}
         {tab === 'recargas-manual' && <RecargasManualesTab />}
+        {tab === 'recargas-dist'   && <RecargasDistribuidorTab />}
         {tab === 'partidos'        && <PartidosResultadosTab isAdmin={true} />}
         {tab === 'promotores'      && <PromotoresAdminTab />}
         {tab === 'medios'          && <MediaTab />}
+        {tab === 'mi-perfil'       && <AdminPerfilTab />}
       </div>
     </div>
   );

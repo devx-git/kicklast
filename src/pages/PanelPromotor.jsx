@@ -1474,7 +1474,7 @@ function MetodosPagoTab() {
 }
 
 // ── EVENTOS TAB ───────────────────────────────────────────────────────────
-function EventosTab({ eventos }) {
+function EventosTab({ eventos, promotorId }) {
   const [configEvento, setConfigEvento] = useState(null); // { id, nombre }
 
   const flat = eventos.map(ev => ({
@@ -1485,6 +1485,8 @@ function EventosTab({ eventos }) {
     _pozo_pct: `${ev.porcentaje_pozo ?? 0}%`,
     _estado: ev.estado || 'ACTIVO',
     _costo_vidas: ev.costo_vidas ?? '—',
+    // Reasignado = este promotor ya no es el dueño
+    _reasignado: !!(promotorId && ev.promotor_id && ev.promotor_id !== promotorId),
   }));
 
   const ESTADO_COLOR = { ACTIVO: '#8dc63f', CERRADO: '#f59e0b', LIQUIDADO: '#a78bfa', CANCELADO: '#f87171' };
@@ -1511,16 +1513,24 @@ function EventosTab({ eventos }) {
     {
       key: '_acciones', label: 'ACCIONES', noSearch: true,
       render: (_, row) => (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
           <a href={`/eventos/${row.id}`}
             style={{ background: '#1e2535', color: '#00d4ff', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textDecoration: 'none', border: '1px solid #00d4ff20' }}>
             VER
           </a>
-          <button
-            onClick={() => setConfigEvento({ id: row.id, nombre: row._nombre })}
-            style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #8dc63f25', cursor: 'pointer' }}>
-            ⚙ PARTIDOS
-          </button>
+          {row._reasignado ? (
+            <span
+              title="Este evento fue reasignado a otro promotor. Ya no puedes administrarlo."
+              style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717125', cursor: 'not-allowed' }}>
+              🔒 REASIGNADO
+            </span>
+          ) : (
+            <button
+              onClick={() => setConfigEvento({ id: row.id, nombre: row._nombre })}
+              style={{ background: 'rgba(141,198,63,0.08)', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #8dc63f25', cursor: 'pointer' }}>
+              ⚙ PARTIDOS
+            </button>
+          )}
         </div>
       ),
     },
@@ -1629,7 +1639,7 @@ export default function PanelPromotor() {
         {tab === 'recargas'           && <RecargasPromotorTab />}
         {tab === 'solicitudes-recarga' && <SolicitudesRecargaManualTab />}
         {tab === 'metodos-pago'       && <MetodosPagoTab />}
-        {tab === 'eventos' && <EventosTab eventos={eventos} />}
+        {tab === 'eventos' && <EventosTab eventos={eventos} promotorId={perfil?.promotorId} />}
         {tab === 'partidos' && <PartidosResultadosTab isAdmin={false} />}
         {tab === 'perfil'   && <EditarPerfil perfil={perfil} />}
       </div>

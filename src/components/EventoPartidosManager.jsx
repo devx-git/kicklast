@@ -52,9 +52,11 @@ const ESTADO_COLOR = {
 // ── Fila de un partido con config inline ─────────────────────────────────────
 
 function PartidoConfigRow({ partido, onSaved }) {
-  const [open,    setOpen]    = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [msg,     setMsg]     = useState('');
+  const [open,        setOpen]        = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [msg,         setMsg]         = useState('');
+  const [livePool,    setLivePool]    = useState(null);
+  const [loadingPool, setLoadingPool] = useState(false);
 
   // Valores editables
   const [tipo,    setTipo]    = useState(partido.tipo    || 'GURU');
@@ -64,6 +66,31 @@ function PartidoConfigRow({ partido, onSaved }) {
   const [cVisit,  setCVisit]  = useState(partido.cuota_visitante ? String(partido.cuota_visitante) : '');
 
   const estadoInfo = ESTADO_COLOR[partido.estado] || ESTADO_COLOR.PROGRAMADO;
+
+  const fetchLivePool = useCallback((applyToInputs = false) => {
+    setLoadingPool(true);
+    api.get(`/partidos/${partido.id}/cuotas-live`)
+      .then(r => {
+        setLivePool(r.data);
+        if (applyToInputs) {
+          setCLocal(String(r.data.cuota_local));
+          setCEmpate(r.data.cuota_empate ? String(r.data.cuota_empate) : '');
+          setCVisit(String(r.data.cuota_visitante));
+        } else {
+          // Solo completar si están vacíos (no sobreescribir lo que el promotor ya ingresó)
+          setCLocal(prev => prev || String(r.data.cuota_local));
+          setCEmpate(prev => prev || (r.data.cuota_empate ? String(r.data.cuota_empate) : ''));
+          setCVisit(prev => prev || String(r.data.cuota_visitante));
+        }
+      })
+      .catch(() => null)
+      .finally(() => setLoadingPool(false));
+  }, [partido.id]);
+
+  // Cargar pool al abrir el panel si tiene apuestas
+  useEffect(() => {
+    if (open && tipo !== 'GURU') fetchLivePool(false);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardar = async () => {
     setMsg('');
@@ -96,10 +123,15 @@ function PartidoConfigRow({ partido, onSaved }) {
     } finally { setSaving(false); }
   };
 
-  // Resetear cuotas si cambia a GURU
   const handleTipo = (v) => {
     setTipo(v);
-    if (v === 'GURU') { setCLocal(''); setCEmpate(''); setCVisit(''); }
+    if (v === 'GURU') {
+      setCLocal(''); setCEmpate(''); setCVisit('');
+      setLivePool(null);
+    } else {
+      // Auto-popular desde el pool (BASE: 1.90/3.20/1.90 si no hay apuestas)
+      fetchLivePool(false);
+    }
   };
 
   const tipoLabel = TIPO_OPS.find(t => t.val === tipo)?.label || tipo;
@@ -292,6 +324,46 @@ function PartidoConfigRow({ partido, onSaved }) {
                 <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', lineHeight: 1.5 }}>
                   💡 Deja vacío una cuota si no aplica (ej: eliminatoria sin empate).
                 </div>
+
+                {/* Pool en vivo */}
+                {livePool && (
+                  <div style={{ background: '#0a0d1460', border: '1px solid #f59e0b20', borderRadius: 5, padding: '10px 12px', marginTop: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 9, color: '#6b7a8d', letterSpacing: '0.1em' }}>
+                        POOL {livePool.tipo} — {Number(livePool.pool_total).toFixed(0)} cr · CASA {(livePool.margen * 100).toFixed(0)}%
+                      </span>
+                      <button
+                        onClick={() => fetchLivePool(livePool.tipo === 'DINAMICA')}
+                        disabled={loadingPool}
+                        style={{ background: 'none', border: 'none', color: loadingPool ? '#4a5568' : '#f59e0b', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                        title="Actualizar cuotas desde el pool"
+                      >
+                        {loadingPool ? '⟳' : '↺'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { key: '1', label: 'LOCAL',     monto: livePool.distribucion?.local     ?? 0, cuota: livePool.cuota_local },
+                        { key: 'X', label: 'EMPATE',    monto: livePool.distribucion?.empate    ?? 0, cuota: livePool.cuota_empate },
+                        { key: '2', label: 'VISITANTE', monto: livePool.distribucion?.visitante ?? 0, cuota: livePool.cuota_visitante },
+                      ].map(o => {
+                        const pct = livePool.pool_total > 0
+                          ? Math.round((Number(o.monto) / Number(livePool.pool_total)) * 100)
+                          : 33;
+                        return (
+                          <div key={o.key} style={{ flex: 1, textAlign: 'center' }}>
+                            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 8, color: '#6b7a8d', marginBottom: 3 }}>{o.key} {o.label}</div>
+                            <div style={{ background: '#1e2a3a', borderRadius: 2, height: 3, overflow: 'hidden', marginBottom: 3 }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: '#f59e0b', transition: 'width 0.4s' }} />
+                            </div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#f59e0b' }}>{Number(o.monto).toFixed(0)} cr</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#8dc63f' }}>×{o.cuota ? Number(o.cuota).toFixed(2) : '—'}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

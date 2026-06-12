@@ -515,25 +515,38 @@ function OddsButtons({ odds, color, onClick }) {
 // ─── Tarjeta de partido — carousel style ─────────────────────────────────────
 
 function PartidoCard({ partido, isSelected, selCuota, onSelect, onSelectCuota }) {
-  const isLive = partido.estado === 'EN_CURSO';
-  const odds   = buildOdds(partido);
-  const liga   = partido._evento?.nombre || partido._evento?.campeonato?.nombre || '';
-  const fecha  = fmtFecha(partido.fecha);
+  const isLive     = partido.estado === 'EN_CURSO';
+  const isFinished = partido.estado === 'FINALIZADO';
+  const odds       = buildOdds(partido);
+  const liga       = partido._evento?.nombre || partido._evento?.campeonato?.nombre || '';
+  const fecha      = fmtFecha(partido.fecha);
+
+  // Date-based badges (skip for live/finished)
+  const now      = new Date();
+  const todayStr = now.toDateString();
+  const tmrw     = new Date(now); tmrw.setDate(tmrw.getDate() + 1);
+  const pDateStr = partido.fecha ? new Date(partido.fecha).toDateString() : null;
+  const isToday    = !isFinished && !isLive && pDateStr === todayStr;
+  const isTomorrow = !isFinished && !isLive && pDateStr === tmrw.toDateString();
+
+  const bg  = isFinished ? '#f8717108' : isToday ? '#1e40af0a' : isTomorrow ? '#8dc63f08' : CARD;
+  const bdr = isSelected ? GREEN : isFinished ? '#f8717150' : isLive ? '#ef444440' : isToday ? '#3b82f650' : isTomorrow ? '#8dc63f50' : BORDER;
 
   return (
     <div
-      onClick={onSelect}
+      onClick={isFinished ? undefined : onSelect}
       style={{
-        background:   CARD,
-        border:       `1px solid ${isSelected ? GREEN : isLive ? '#ef444440' : BORDER}`,
+        background:   bg,
+        border:       `1px solid ${bdr}`,
         borderRadius: 10,
         padding:      '14px 14px 12px',
         display:      'flex', flexDirection: 'column', gap: 10,
         width:        248, flexShrink: 0,
         scrollSnapAlign: 'start',
-        cursor:       'pointer',
+        cursor:       isFinished ? 'not-allowed' : 'pointer',
         transition:   'border-color 0.18s, box-shadow 0.18s',
         boxShadow:    isSelected ? `0 0 0 1px ${GREEN}40` : 'none',
+        opacity:      isFinished ? 0.75 : 1,
       }}
     >
       {/* Cabecera */}
@@ -543,7 +556,13 @@ function PartidoCard({ partido, isSelected, selCuota, onSelect, onSelectCuota })
         </span>
         {isLive
           ? <span style={{ background: '#ef4444', color: '#fff', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>● LIVE</span>
-          : <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, flexShrink: 0 }}>{fecha}</span>
+          : isFinished
+            ? <span style={{ background: '#f8717120', color: '#f87171', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>YA JUGADO</span>
+            : isToday
+              ? <span style={{ background: '#3b82f620', color: '#60a5fa', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>HOY</span>
+              : isTomorrow
+                ? <span style={{ background: '#8dc63f20', color: '#8dc63f', fontSize: 9, padding: '2px 7px', borderRadius: 3, fontFamily: 'Oswald', fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>MAÑANA</span>
+                : <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, flexShrink: 0 }}>{fecha}</span>
         }
       </div>
 
@@ -552,18 +571,20 @@ function PartidoCard({ partido, isSelected, selCuota, onSelect, onSelectCuota })
         <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', textAlign: 'right', lineHeight: 1.2 }}>
           {partido.equipo_local || 'Local'}
         </div>
-        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: MUTED, padding: '3px 7px', background: '#0f1420', borderRadius: 4, flexShrink: 0 }}>
+        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: isFinished ? '#f87171' : MUTED, padding: '3px 7px', background: '#0f1420', borderRadius: 4, flexShrink: 0, fontWeight: isFinished ? 800 : 400 }}>
           {isLive && partido.marcador_local != null
             ? `${partido.marcador_local}-${partido.marcador_visitante}`
-            : 'vs'}
+            : isFinished && partido.resultado_local != null
+              ? `${partido.resultado_local}-${partido.resultado_visitante}`
+              : 'vs'}
         </div>
         <div style={{ flex: 1, fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', textAlign: 'left', lineHeight: 1.2 }}>
           {partido.equipo_visitante || 'Visitante'}
         </div>
       </div>
 
-      {/* Cuotas */}
-      {odds.length > 0 ? (
+      {/* Cuotas — ocultas cuando el partido ya terminó */}
+      {!isFinished && odds.length > 0 ? (
         <div style={{ display: 'flex', gap: 4 }}>
           {odds.map(o => {
             const activo = selCuota === o.sel;
@@ -583,11 +604,11 @@ function PartidoCard({ partido, isSelected, selCuota, onSelect, onSelectCuota })
             );
           })}
         </div>
-      ) : (
+      ) : !isFinished ? (
         <div style={{ textAlign: 'center', fontFamily: 'Roboto, sans-serif', fontSize: 10, color: MUTED, padding: '4px 0' }}>
           Sin cuotas · solo predicción
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

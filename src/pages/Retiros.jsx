@@ -281,7 +281,7 @@ function SolicitarForm({ onSuccess, onError, onCancel, previewFiscal }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={labelStyle}>Banco</label>
-              <input placeholder="Ej: Bancolombia, Davivienda..." value={form.banco}
+              <input placeholder="Ej: Banco nacional, transferencia..." value={form.banco}
                 onChange={e => setForm(f => ({ ...f, banco: e.target.value }))} style={inputStyle} />
             </div>
             <div>

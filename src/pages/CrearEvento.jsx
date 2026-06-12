@@ -227,7 +227,7 @@ export default function CrearEvento() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <div>
                     <label style={LABEL}>EQUIPO LOCAL</label>
-                    <input value={p.equipo_local} onChange={e => handlePartido(i, 'equipo_local', e.target.value)} required placeholder="Ej: Colombia" style={INPUT} />
+                    <input value={p.equipo_local} onChange={e => handlePartido(i, 'equipo_local', e.target.value)} required placeholder="Ej: Equipo local" style={INPUT} />
                   </div>
                   <div>
                     <label style={LABEL}>EQUIPO VISITANTE</label>

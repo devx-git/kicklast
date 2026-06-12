@@ -54,6 +54,7 @@ export default function HubJugador() {
   const [selPartido,   setSelPartido]   = useState(null);
   const [selCuota,     setSelCuota]     = useState(null);
   const [montoBet,     setMontoBet]     = useState('');
+  const [mostrarTodos, setMostrarTodos] = useState(false);
   const refreshTimer = useRef(null);
 
   // ── Auth + role-based redirect ─────────────────────────────────────────────
@@ -104,20 +105,30 @@ export default function HubJugador() {
   const predActivas = dashData?.gurus_activos?.length ?? 0;
   const apuestPend  = dashData?.apuestas_pendientes?.length ?? 0;
 
-  const live    = eventos.filter(e => e.estado === 'EN_VIVO');
-  const hoy     = eventos.filter(e => e.estado === 'ACTIVO' && esHoy(e.fecha_evento));
-  const proximos = eventos.filter(e => e.estado === 'ACTIVO' && !esHoy(e.fecha_evento));
+  // ── Filtro por país del usuario ───────────────────────────────────────────
+  const paisUser = dashData?.perfil?.pais;  // "Ecuador", "Colombia", etc.
+  const eventosFilt = (paisUser && !mostrarTodos)
+    ? eventos.filter(e => !e.promotor?.pais || e.promotor.pais === paisUser)
+    : eventos;
+  // Si no hay eventos para el país del usuario, mostrar todos automáticamente
+  const eventosMostrados = (eventosFilt.length === 0 && paisUser && !mostrarTodos)
+    ? eventos
+    : eventosFilt;
+
+  const live    = eventosMostrados.filter(e => e.estado === 'EN_VIVO');
+  const hoy     = eventosMostrados.filter(e => e.estado === 'ACTIVO' && esHoy(e.fecha_evento));
+  const proximos = eventosMostrados.filter(e => e.estado === 'ACTIVO' && !esHoy(e.fecha_evento));
 
   const tabEventos = {
-    todos:   eventos,
+    todos:   eventosMostrados,
     vivo:    live,
     hoy:     [...live, ...hoy],
     proximos,
-  }[tab] ?? eventos;
+  }[tab] ?? eventosMostrados;
 
   // Vista partidos — aplanar todos los partidos de todos los eventos
   const ahora = new Date();
-  const todosPartidos = eventos.flatMap(ev =>
+  const todosPartidos = eventosMostrados.flatMap(ev =>
     (ev.partidos || []).map(p => ({ ...p, _evento: ev }))
   );
   const pLive     = todosPartidos.filter(p => p.estado === 'EN_CURSO');
@@ -189,10 +200,37 @@ export default function HubJugador() {
 
             {vistaMode === 'eventos' ? (
               <>
+                {/* Chip de filtro activo por país */}
+                {paisUser && eventos.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: MUTED }}>Mostrando:</span>
+                    {!mostrarTodos ? (
+                      <>
+                        <span style={{ background: 'rgba(141,198,63,0.12)', border: '1px solid #8dc63f40', borderRadius: 20, padding: '3px 10px', fontFamily: 'Oswald, sans-serif', fontSize: 10, color: GREEN, fontWeight: 700 }}>
+                          {paisUser}
+                        </span>
+                        {eventosFilt.length === 0 && (
+                          <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#f59e0b' }}>Sin eventos · mostrando todos</span>
+                        )}
+                        <button onClick={() => setMostrarTodos(true)} style={{ background: 'none', border: 'none', color: MUTED, fontFamily: 'Roboto, sans-serif', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                          Ver todos los países
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ background: '#1e2535', border: '1px solid #1e2a3a', borderRadius: 20, padding: '3px 10px', fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#c0cad8' }}>Todos los países</span>
+                        <button onClick={() => setMostrarTodos(false)} style={{ background: 'none', border: 'none', color: GREEN, fontFamily: 'Roboto, sans-serif', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                          Solo {paisUser}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Tabs eventos */}
                 <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
                   {[
-                    { key: 'todos',    label: 'Todos',      badge: eventos.length },
+                    { key: 'todos',    label: 'Todos',      badge: eventosMostrados.length },
                     { key: 'vivo',     label: '● En vivo',  badge: live.length, red: true },
                     { key: 'hoy',      label: 'Hoy',        badge: hoy.length },
                     { key: 'proximos', label: 'Próximos',   badge: proximos.length },

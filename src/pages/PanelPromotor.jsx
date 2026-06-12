@@ -225,7 +225,7 @@ function DistribuidoresTab() {
               <div><label style={LABEL}>NOMBRE</label><input name="nombre" value={form.nombre} onChange={handle} required placeholder="Nombre del distribuidor" style={INPUT} /></div>
               <div><label style={LABEL}>EMAIL</label><input name="email" type="email" value={form.email} onChange={handle} required placeholder="email@ejemplo.com" style={INPUT} /></div>
               <div><label style={LABEL}>CONTRASEÑA INICIAL</label><input name="password" type="password" value={form.password} onChange={handle} required minLength={6} placeholder="Mínimo 6 caracteres" style={INPUT} /></div>
-              <div><label style={LABEL}>PAÍS</label><input name="pais" value={form.pais} onChange={handle} placeholder="Colombia" style={INPUT} /></div>
+              <div><label style={LABEL}>PAÍS</label><input name="pais" value={form.pais} onChange={handle} placeholder="Ej: Ecuador" style={INPUT} /></div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={LABEL}>NOTAS INTERNAS <span style={{ color: '#4a5568', fontSize: 10 }}>(opcional)</span></label>
@@ -1429,10 +1429,10 @@ function MetodosPagoTab() {
               </div>
 
               {[
-                { name: 'metodo_nombre',  label: 'Nombre mostrado al usuario', placeholder: 'Ej: Nequi Colombia' },
-                { name: 'numero_cuenta',  label: 'Número de cuenta / celular',  placeholder: 'Ej: 3001234567' },
+                { name: 'metodo_nombre',  label: 'Nombre mostrado al usuario', placeholder: 'Ej: Transferencia móvil' },
+                { name: 'numero_cuenta',  label: 'Número de cuenta / celular',  placeholder: 'Ej: 0987654321' },
                 { name: 'nombre_titular', label: 'Nombre del titular',          placeholder: 'Ej: Juan Pérez' },
-                { name: 'banco',          label: 'Banco (si aplica)',            placeholder: 'Ej: Bancolombia' },
+                { name: 'banco',          label: 'Banco (si aplica)',            placeholder: 'Ej: Banco local' },
               ].map(f => (
                 <div key={f.name} style={{ marginBottom: 12 }}>
                   <label style={{ ...LABEL }}>{f.label}</label>

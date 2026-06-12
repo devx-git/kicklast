@@ -135,7 +135,7 @@ export default function RegistroPromotor() {
             {/* Nombre empresa */}
             <div style={{ marginBottom: 16 }}>
               <label style={LABEL}>NOMBRE DE LA EMPRESA / MARCA</label>
-              <input name="nombre" value={form.nombre} onChange={handle} required placeholder="Ej: Predicciones Colombia" style={INPUT} />
+              <input name="nombre" value={form.nombre} onChange={handle} required placeholder="Ej: Predicciones Latam" style={INPUT} />
             </div>
 
             {/* Email */}

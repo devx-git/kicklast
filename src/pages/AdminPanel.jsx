@@ -121,6 +121,8 @@ function UsuariosTab() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState(null);
+  const [delModal, setDelModal] = useState(null); // { id, nombre }
+  const [msg, setMsg] = useState('');
 
   const cargar = useCallback(() => {
     setLoading(true);
@@ -134,6 +136,20 @@ function UsuariosTab() {
     try {
       await api.patch(`/admin/usuarios/${id}/${activo ? 'bloquear' : 'activar'}`);
       cargar();
+    } finally { setActioning(null); }
+  };
+
+  const confirmarEliminar = async () => {
+    if (!delModal) return;
+    setActioning(delModal.id);
+    try {
+      await api.delete(`/admin/usuarios/${delModal.id}`);
+      setMsg(`✓ Usuario "${delModal.nombre}" eliminado`);
+      setDelModal(null);
+      cargar();
+    } catch (e) {
+      setMsg(`✗ ${e.response?.data?.message || 'Error al eliminar'}`);
+      setDelModal(null);
     } finally { setActioning(null); }
   };
 
@@ -174,17 +190,58 @@ function UsuariosTab() {
     {
       key: '_acciones', label: 'ACCIONES', noSearch: true,
       render: (_, row) => (
-        <button
-          onClick={() => toggleUser(row.id, row.activo)}
-          disabled={actioning === row.id}
-          style={{ background: row.activo !== false ? '#1a0a0a' : '#0f2818', color: row.activo !== false ? '#f87171' : '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, padding: '5px 12px', borderRadius: 4, border: `1px solid ${row.activo !== false ? '#f8717130' : '#8dc63f30'}`, cursor: 'pointer' }}>
-          {actioning === row.id ? '...' : row.activo !== false ? 'BLOQUEAR' : 'ACTIVAR'}
-        </button>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => toggleUser(row.id, row.activo)}
+            disabled={!!actioning}
+            style={{ background: row.activo !== false ? '#1a0a0a' : '#0f2818', color: row.activo !== false ? '#f87171' : '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, padding: '5px 12px', borderRadius: 4, border: `1px solid ${row.activo !== false ? '#f8717130' : '#8dc63f30'}`, cursor: 'pointer' }}>
+            {actioning === row.id ? '...' : row.activo !== false ? 'BLOQUEAR' : 'ACTIVAR'}
+          </button>
+          {!['ADMIN', 'SUPER_ADMIN'].includes(row._rol) && (
+            <button
+              onClick={() => setDelModal({ id: row.id, nombre: row._nombre })}
+              disabled={!!actioning}
+              style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>
+              🗑
+            </button>
+          )}
+        </div>
       ),
     },
   ];
 
-  return <DataTable columns={columns} data={flat} pageSize={25} emptyMsg="No hay usuarios registrados" exportCsv />;
+  return (
+    <>
+      <MsgBanner msg={msg} onClear={() => setMsg('')} />
+      <DataTable columns={columns} data={flat} pageSize={25} emptyMsg="No hay usuarios registrados" exportCsv />
+
+      {/* Modal confirmación eliminar usuario */}
+      {delModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.80)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+          <div style={{ background: '#0f1420', border: '1px solid #f8717140', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <span style={{ fontSize: 28 }}>🗑</span>
+              <h3 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, color: '#f87171', margin: 0 }}>ELIMINAR USUARIO</h3>
+            </div>
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 20 }}>
+              Usuario: <strong style={{ color: '#c0cad8' }}>{delModal.nombre}</strong>
+            </div>
+            <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px', marginBottom: 22 }}>
+              <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {['Se borra la cuenta y todos sus datos', 'Sus movimientos financieros quedan en historial (usuario anulado)', '⛔ Esta acción es permanente e irreversible'].map((e, i) => (
+                  <li key={i} style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: e.startsWith('⛔') ? '#f87171' : '#c0cad8', lineHeight: 1.5 }}>{e}</li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDelModal(null)} style={{ background: '#1e2535', color: '#c0cad8', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 20px', cursor: 'pointer' }}>CANCELAR</button>
+              <button onClick={confirmarEliminar} style={{ background: '#7f1d1d', color: '#fca5a5', fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 700, border: '1px solid #f8717140', borderRadius: 6, padding: '10px 20px', cursor: 'pointer' }}>⛔ ELIMINAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ─── RETIROS ───────────────────────────────────────────────────────────────
@@ -646,9 +703,7 @@ function EventosAdminTab() {
           {row.cerrado && row._estado !== 'LIQUIDADO' && (
             <button onClick={() => pedirLiquidar(row)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>LIQUIDAR</button>
           )}
-          {row._estado !== 'LIQUIDADO' && (
-            <button onClick={() => pedirEliminar(row)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>🗑 BORRAR</button>
-          )}
+          <button onClick={() => pedirEliminar(row)} disabled={!!actioning} style={{ background: '#1a0a0a', color: '#f87171', fontFamily: 'Oswald, sans-serif', fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, border: '1px solid #f8717130', cursor: 'pointer' }}>🗑 BORRAR</button>
         </div>
       ),
     },

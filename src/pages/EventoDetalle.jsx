@@ -65,7 +65,7 @@ export default function EventoDetalle() {
       {/* Hero */}
       <div style={{ background: 'linear-gradient(180deg, #0f1420 0%, #0a0d14 100%)', padding: '48px 20px 40px', borderBottom: '1px solid #1e2a3a' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <a href="/" style={{ color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, textDecoration: 'none', display: 'inline-block', marginBottom: 20 }}>← Volver a eventos</a>
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#6b7a8d', fontFamily: 'Roboto, sans-serif', fontSize: 12, cursor: 'pointer', padding: 0, display: 'inline-block', marginBottom: 20 }}>← Volver a eventos</button>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1 }}>

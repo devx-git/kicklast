@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { authService } from '../services/authService';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -9,14 +10,18 @@ export default function Campeonatos() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
+  const isLoggedIn = authService.isAuthenticated();
+  const predecirHref = isLoggedIn ? '/hub' : '/login';
+
   useEffect(() => {
     Promise.all([
       api.get('/campeonatos'),
-      api.get('/eventos?limit=50'),
+      api.get('/eventos?limit=100&estado=ACTIVO'),
     ])
       .then(([c, e]) => {
         setCampeonatos(Array.isArray(c.data) ? c.data : []);
-        setEventos(Array.isArray(e.data) ? e.data : []);
+        const evData = Array.isArray(e.data) ? e.data : (Array.isArray(e.data?.data) ? e.data.data : []);
+        setEventos(evData.filter(ev => ev.estado === 'ACTIVO' || ev.activo));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -89,7 +94,7 @@ export default function Campeonatos() {
                                 ${(Number(ev.acumulado_actual) / 1000000).toFixed(0)}M
                               </span>
                             )}
-                            <a href="/" style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 14px', borderRadius: 4, textDecoration: 'none', border: '1px solid #8dc63f30', letterSpacing: '0.05em' }}>
+                            <a href={predecirHref} style={{ background: '#1e2535', color: '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '8px 14px', borderRadius: 4, textDecoration: 'none', border: '1px solid #8dc63f30', letterSpacing: '0.05em' }}>
                               PREDECIR →
                             </a>
                           </div>

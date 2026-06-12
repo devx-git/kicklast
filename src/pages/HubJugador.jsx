@@ -55,7 +55,9 @@ export default function HubJugador() {
   const [selCuota,     setSelCuota]     = useState(null);
   const [montoBet,     setMontoBet]     = useState('');
   const [mostrarTodos, setMostrarTodos] = useState(false);
-  const refreshTimer = useRef(null);
+  const refreshTimer   = useRef(null);
+  const scrollRef      = useRef(null);
+  const dragState      = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
   // ── Auth + role-based redirect ─────────────────────────────────────────────
   useEffect(() => {
@@ -323,11 +325,28 @@ export default function HubJugador() {
                     No hay partidos en esta categoría
                   </div>
                 ) : (
-                  <div className="partido-scroll" style={{
-                    display: 'flex', gap: 10, overflowX: 'auto', overflowY: 'hidden',
-                    scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
-                    paddingBottom: 4, paddingRight: 8,
-                  }}>
+                  <div
+                    ref={scrollRef}
+                    className="partido-scroll"
+                    style={{
+                      display: 'flex', gap: 10, overflowX: 'auto', overflowY: 'hidden',
+                      scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                      paddingBottom: 4, paddingRight: 8,
+                      cursor: 'grab', userSelect: 'none',
+                    }}
+                    onMouseDown={e => {
+                      dragState.current = { active: true, startX: e.pageX - scrollRef.current.offsetLeft, scrollLeft: scrollRef.current.scrollLeft };
+                      scrollRef.current.style.cursor = 'grabbing';
+                    }}
+                    onMouseMove={e => {
+                      if (!dragState.current.active) return;
+                      e.preventDefault();
+                      const x = e.pageX - scrollRef.current.offsetLeft;
+                      scrollRef.current.scrollLeft = dragState.current.scrollLeft - (x - dragState.current.startX);
+                    }}
+                    onMouseUp={() => { dragState.current.active = false; scrollRef.current.style.cursor = 'grab'; }}
+                    onMouseLeave={() => { dragState.current.active = false; if (scrollRef.current) scrollRef.current.style.cursor = 'grab'; }}
+                  >
                     {partidosFiltrados.map(p => (
                       <PartidoCard
                         key={p.id}

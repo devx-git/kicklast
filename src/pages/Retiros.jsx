@@ -21,38 +21,29 @@ function RequisitosPanel({ req, onSolicitar }) {
 
   const items = [
     {
-      label: 'Ganar acumulado global',
-      ok: req.acumulado_ganado,
-      detail: req.acumulado_ganado ? '✓ Acumulado ganado' : '✗ No has ganado ningún acumulado',
-      color: '#00d4ff',
-    },
-    {
-      label: '3 o más Predicciones ganadas',
-      ok: req.gurus_ganados >= 3,
-      detail: `${req.gurus_ganados ?? 0} / 3 predicciones ganadas`,
-      color: '#8dc63f',
-    },
-    {
-      label: '3 o más apuestas ganadas',
-      ok: req.apuestas_ganadas >= 3,
-      detail: `${req.apuestas_ganadas ?? 0} / 3 apuestas ganadas`,
+      label: `${req.apuestas_requeridas ?? 3} apuestas realizadas`,
+      ok: req.cumple_apuestas,
+      detail: `${req.apuestas_realizadas ?? 0} / ${req.apuestas_requeridas ?? 3} apuestas`,
       color: '#a78bfa',
     },
     {
-      label: `Mínimo $${req.minimo_usd ?? 100} USD en créditos`,
+      label: `${req.predicciones_requeridas ?? 2} predicciones realizadas`,
+      ok: req.cumple_predicciones,
+      detail: `${req.predicciones_realizadas ?? 0} / ${req.predicciones_requeridas ?? 2} predicciones`,
+      color: '#8dc63f',
+    },
+    {
+      label: `Mínimo ${req.minimo_retiro ?? 150} créditos en wallet`,
       ok: req.cumple_minimo,
       detail: req.cumple_minimo
-        ? `✓ Tienes $${Number(req.saldo_disponible ?? 0).toLocaleString('es-CO')} cr disponibles`
-        : `✗ Saldo: $${Number(req.saldo_disponible ?? 0).toLocaleString('es-CO')} cr — mínimo $${req.minimo_usd ?? 100}`,
+        ? `✓ Tienes ${Number(req.saldo_disponible ?? 0).toLocaleString('es-CO')} cr disponibles`
+        : `Saldo: ${Number(req.saldo_disponible ?? 0).toLocaleString('es-CO')} cr — mínimo ${req.minimo_retiro ?? 150} cr`,
       color: '#f59e0b',
     },
   ];
 
-  // Cumple si: (acumulado OR gurus>=3 OR apuestas>=3) AND monto>=100
-  const cumpleJuego = req.acumulado_ganado || req.gurus_ganados >= 3 || req.apuestas_ganadas >= 3;
-
   return (
-    <div style={{ background: '#161e2e', border: `1px solid ${cumple ? '#8dc63f40' : '#f87171'}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
+    <div style={{ background: '#161e2e', border: `1px solid ${cumple ? '#8dc63f40' : '#1e2a3a'}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <span style={{ fontSize: 28 }}>{cumple ? '✅' : '🔒'}</span>
         <div>
@@ -61,19 +52,19 @@ function RequisitosPanel({ req, onSolicitar }) {
           </div>
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginTop: 2 }}>
             {cumple
-              ? 'Puedes solicitar tu retiro. Se aplicarán impuestos y comisiones según tu país.'
-              : 'Debes cumplir el requisito de monto Y al menos uno de los requisitos de juego.'}
+              ? 'Puedes solicitar tu retiro. Se aplicarán retenciones según la ley de tu país.'
+              : req.razon_bloqueo || 'Debes cumplir los 3 requisitos para solicitar un retiro.'}
           </div>
         </div>
       </div>
 
-      {/* Requisitos de juego */}
-      <div style={{ marginBottom: 14 }}>
+      {/* Los 3 requisitos — AND logic */}
+      <div style={{ marginBottom: 16 }}>
         <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 8 }}>
-          REQUISITOS DE JUEGO — cumple al menos 1 de los 3:
+          REQUISITOS — todos deben cumplirse:
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {items.slice(0, 3).map((item, i) => (
+          {items.map((item, i) => (
             <div key={i} style={{
               background: '#0a0d14', borderRadius: 6, padding: '10px 14px',
               border: `1px solid ${item.ok ? item.color + '40' : '#1e2a3a'}`,
@@ -87,61 +78,39 @@ function RequisitosPanel({ req, onSolicitar }) {
             </div>
           ))}
         </div>
-        {!cumpleJuego && (
-          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f59e0b', marginTop: 8, padding: '6px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 4 }}>
-            💡 Sigue participando en Predicciones o apostando para cumplir este requisito.
-          </div>
-        )}
       </div>
 
-      {/* Requisito de monto */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 8 }}>
-          REQUISITO DE MONTO MÍNIMO:
-        </div>
-        {(() => {
-          const item = items[3];
-          return (
-            <div style={{
-              background: '#0a0d14', borderRadius: 6, padding: '10px 14px',
-              border: `1px solid ${item.ok ? item.color + '40' : '#1e2a3a'}`,
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              <span style={{ fontSize: 16 }}>{item.ok ? '✅' : '⭕'}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: item.ok ? '#c0cad8' : '#6b7a8d' }}>{item.label}</div>
-                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: item.ok ? item.color : '#4a5568', marginTop: 2 }}>{item.detail}</div>
-              </div>
-            </div>
-          );
-        })()}
+      {/* Link al historial */}
+      <div style={{ marginBottom: 16 }}>
+        <a href="/mis-aciertos" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#8dc63f',
+          textDecoration: 'none',
+        }}>
+          📊 Ver mi historial de predicciones y apuestas →
+        </a>
       </div>
 
-      {/* Preview fiscal */}
+      {/* Preview neto (sin mostrar tasas internas) */}
       {req.preview_fiscal && (
-        <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
-          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 12 }}>
-            PREVIEW FISCAL (basado en tu saldo actual)
+        <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 10, color: '#6b7a8d', letterSpacing: '0.08em', marginBottom: 10 }}>
+            ESTIMADO SI RETIRAS TU SALDO ACTUAL
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
-              <span style={{ color: '#c0cad8' }}>Monto bruto</span>
-              <span style={{ color: '#fff', fontWeight: 600 }}>${Number(req.preview_fiscal.monto_bruto ?? 0).toLocaleString('es-CO')} cr</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
-              <span style={{ color: '#f87171' }}>Impuesto ({req.preview_fiscal.impuesto_pct ?? 0}% — {req.preview_fiscal.pais_label ?? 'tu país'})</span>
-              <span style={{ color: '#f87171' }}>-${Number(req.preview_fiscal.impuesto_monto ?? 0).toFixed(2)} cr</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
-              <span style={{ color: '#f59e0b' }}>Comisión casa de apuestas ({req.preview_fiscal.comision_casa_pct ?? 3}%)</span>
-              <span style={{ color: '#f59e0b' }}>-${Number(req.preview_fiscal.comision_casa_monto ?? 0).toFixed(2)} cr</span>
-            </div>
-            <div style={{ height: 1, background: '#1e2a3a', margin: '4px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700 }}>
-              <span style={{ color: '#8dc63f' }}>RECIBES</span>
-              <span style={{ color: '#8dc63f' }}>${Number(req.preview_fiscal.monto_neto ?? 0).toFixed(2)} cr</span>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 13 }}>
+            <span style={{ color: '#c0cad8' }}>Créditos brutos</span>
+            <span style={{ color: '#fff', fontWeight: 600 }}>{Number(req.preview_fiscal.monto_bruto ?? 0).toLocaleString('es-CO')} cr</span>
           </div>
+          <div style={{ height: 1, background: '#1e2a3a', margin: '8px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700 }}>
+            <span style={{ color: '#8dc63f' }}>RECIBIRÍAS</span>
+            <span style={{ color: '#8dc63f' }}>{Number(req.preview_fiscal.monto_neto ?? 0).toFixed(2)} cr</span>
+          </div>
+          {req.preview_fiscal.pais_label && (
+            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#4a5568', marginTop: 6 }}>
+              Incluye retenciones fiscales aplicables en {req.preview_fiscal.pais_label}.
+            </div>
+          )}
         </div>
       )}
 
@@ -164,26 +133,24 @@ function SolicitarForm({ onSuccess, onError, onCancel, previewFiscal }) {
   const [success, setSuccess] = useState('');
   const [montoInfo, setMontoInfo] = useState(null);
 
-  // Calcular impuestos en tiempo real según monto ingresado
+  // Calcular neto estimado usando la tasa efectiva del preview fiscal
   useEffect(() => {
     if (!previewFiscal || !form.creditos || isNaN(Number(form.creditos)) || Number(form.creditos) <= 0) {
       setMontoInfo(null); return;
     }
     const monto  = Number(form.creditos);
-    const impPct = previewFiscal.impuesto_pct    ?? 0;
-    const comPct = previewFiscal.comision_casa_pct ?? 3;
-    const impMonto = monto * impPct / 100;
-    const comMonto = monto * comPct / 100;
-    const neto = monto - impMonto - comMonto;
-    setMontoInfo({ impPct, comPct, impMonto, comMonto, neto });
+    const bruto  = Number(previewFiscal.monto_bruto ?? 1);
+    const neto   = Number(previewFiscal.monto_neto  ?? bruto);
+    const tasa   = bruto > 0 ? neto / bruto : 1;
+    setMontoInfo({ neto: monto * tasa });
   }, [form.creditos, previewFiscal]);
 
   const submit = async (e) => {
     e.preventDefault();
     const creditos = Number(form.creditos);
-    const minimo   = previewFiscal?.minimo ?? 100;
+    const minimo   = previewFiscal?.minimo ?? 150;
     if (creditos < minimo) {
-      onError(`El monto mínimo de retiro es $${minimo} USD`);
+      onError(`El monto mínimo de retiro es ${minimo} créditos`);
       return;
     }
     setLoading(true);
@@ -227,26 +194,17 @@ function SolicitarForm({ onSuccess, onError, onCancel, previewFiscal }) {
 
         {/* Monto */}
         <div>
-          <label style={labelStyle}>Créditos a retirar (1 cr ≈ $1 USD) — mínimo ${previewFiscal?.minimo ?? 100}</label>
-          <input type="number" placeholder={`Ej: ${previewFiscal?.minimo ?? 100}`} value={form.creditos}
-            min={previewFiscal?.minimo ?? 100}
+          <label style={labelStyle}>Créditos a retirar — mínimo {previewFiscal?.minimo ?? 150} cr</label>
+          <input type="number" placeholder={`Ej: ${previewFiscal?.minimo ?? 150}`} value={form.creditos}
+            min={previewFiscal?.minimo ?? 150}
             onChange={e => setForm(f => ({ ...f, creditos: e.target.value }))} required style={inputStyle} />
 
-          {/* Desglose fiscal en tiempo real */}
+          {/* Estimado neto en tiempo real */}
           {montoInfo && (
             <div style={{ background: '#0a0d14', border: '1px solid #1e2a3a', borderRadius: 6, padding: '10px 14px', marginTop: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                  <span>Impuesto {previewFiscal?.pais_label ? `(${previewFiscal.pais_label})` : ''} ({montoInfo.impPct}%)</span>
-                  <span style={{ color: '#f87171' }}>-${montoInfo.impMonto.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                  <span>Comisión casa de apuestas ({montoInfo.comPct}%)</span>
-                  <span style={{ color: '#f59e0b' }}>-${montoInfo.comMonto.toFixed(2)}</span>
-                </div>
-                <div style={{ height: 1, background: '#1e2a3a' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 700 }}>
-                  <span style={{ color: '#8dc63f' }}>RECIBES</span>
+                  <span style={{ color: '#8dc63f' }}>RECIBIRÍAS (estimado)</span>
                   <span style={{ color: '#8dc63f' }}>${montoInfo.neto.toFixed(2)} USD</span>
                 </div>
               </div>
@@ -421,7 +379,7 @@ export default function Retiros() {
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#8dc63f', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 8 }}>MI CUENTA</div>
           <h1 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: 700, color: '#fff', margin: 0 }}>RETIROS</h1>
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 13, color: '#6b7a8d', marginTop: 6 }}>
-            Para retirar debes: ganar un acumulado, o ≥3 predicciones, o ≥3 apuestas, y tener mínimo $100 USD.
+            Para retirar debes: haber realizado ≥3 apuestas y ≥2 predicciones, y tener mínimo 150 créditos.
           </div>
         </div>
 

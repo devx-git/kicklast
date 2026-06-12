@@ -27,6 +27,7 @@ const MisPredicciones    = lazy(() => import('./pages/MisPredicciones'));
 const Movimientos        = lazy(() => import('./pages/Movimientos'));
 const Retiros            = lazy(() => import('./pages/Retiros'));
 const MisApuestas        = lazy(() => import('./pages/MisApuestas'));
+const MisAciertos        = lazy(() => import('./pages/MisAciertos'));
 const CanjearPin         = lazy(() => import('./pages/CanjearPin'));
 const Recargar           = lazy(() => import('./pages/Recargar'));
 const Checkout           = lazy(() => import('./pages/Checkout'));
@@ -263,6 +264,7 @@ export default function App() {
           <Route path="/mis-predicciones" element={<MisPredicciones />} />
           <Route path="/movimientos"      element={<Movimientos />} />
           <Route path="/retiros"          element={<Retiros />} />
+          <Route path="/mis-aciertos"     element={<MisAciertos />} />
           <Route path="/mis-apuestas"     element={<MisApuestas />} />
           <Route path="/canjear-pin"      element={<CanjearPin />} />
           <Route path="/recargar"         element={<Recargar />} />

@@ -109,7 +109,9 @@ function PredRow({ p, expanded, onToggle }) {
   const isGuru   = detalles.length > 0;
   const aciertos = detalles.filter(d => d.es_acierto).length;
   const total    = detalles.length;
-  const pendientes = detalles.filter(d => d.es_acierto === false || d.es_acierto === null).length;
+
+  // Partidos únicos involucrados en esta predicción
+  const partidos = [...new Set(detalles.map(d => d.partido).filter(Boolean))];
 
   return (
     <div style={{ background: '#161e2e', border: '1px solid #1e2a3a', borderRadius: 10, overflow: 'hidden' }}>
@@ -119,11 +121,26 @@ function PredRow({ p, expanded, onToggle }) {
         style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', cursor: isGuru ? 'pointer' : 'default' }}
       >
         <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>
-            {p.evento?.nombre || 'Evento'}
-          </div>
+          {/* Partido(s) — título principal */}
+          {partidos.length === 1 ? (
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>
+              {partidos[0]}
+            </div>
+          ) : partidos.length > 1 ? (
+            <div style={{ marginBottom: 4 }}>
+              {partidos.map((pt, i) => (
+                <div key={i} style={{ fontFamily: 'Oswald, sans-serif', fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.5 }}>
+                  {pt}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>
+              {p.evento?.nombre || 'Evento'}
+            </div>
+          )}
           <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-            {p.evento?.campeonato?.nombre || ''}{p.evento?.campeonato?.nombre ? ' · ' : ''}{fecha}
+            {p.evento?.nombre ? `${p.evento.nombre} · ` : ''}{p.evento?.campeonato?.nombre || ''}{p.evento?.campeonato?.nombre ? ' · ' : ''}{fecha}
           </div>
         </div>
 

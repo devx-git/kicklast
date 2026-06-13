@@ -53,36 +53,48 @@ export default function MisApuestas() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {apuestas.map((a, i) => {
             const color = ESTADO_COLOR[a.estado] || '#6b7a8d';
-            const selLabel = RESULTADO_LABEL[a.seleccion] || a.seleccion || '?';
+            // Usar resultado_elegido (campo correcto del backend)
+            const selLabel = RESULTADO_LABEL[a.resultado_elegido] || a.resultado_elegido || '?';
+            // Nombre del partido: priorizar partido específico, luego evento
+            const eqLocal     = a.equipo_local     || a.partido?.equipo_local     || a.evento?.equipo_local;
+            const eqVisitante = a.equipo_visitante || a.partido?.equipo_visitante || a.evento?.equipo_visitante;
+            const nombrePartido = eqLocal && eqVisitante
+              ? `${eqLocal} vs ${eqVisitante}`
+              : a.evento?.nombre || `Apuesta #${a.id?.slice(0, 8) || i + 1}`;
             return (
-              <div key={a.id || i} style={{ background: '#0f1420', border: '1px solid #1e2a3a', borderRadius: 8, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div key={a.id || i} style={{ background: '#0f1420', border: `1px solid ${color}20`, borderRadius: 8, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 15, color: '#fff', marginBottom: 4 }}>
-                    {a.evento?.nombre || a.evento?.equipo_local ? `${a.evento.equipo_local} vs ${a.evento.equipo_visitante}` : `Apuesta #${a.id?.slice(0, 8) || i + 1}`}
+                    {nombrePartido}
                   </div>
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                      Selección: <strong style={{ color: '#e2e8f0' }}>{selLabel}</strong>
+                      Selección: <strong style={{ color: '#e2e8f0' }}>{a.etiqueta || selLabel}</strong>
                     </span>
-                    {a.cuota && (
+                    {a.cuota_al_apostar && (
                       <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                        Cuota: <strong style={{ color: '#f59e0b' }}>×{Number(a.cuota).toFixed(2)}</strong>
+                        Cuota: <strong style={{ color: '#f59e0b' }}>×{Number(a.cuota_al_apostar).toFixed(2)}</strong>
                       </span>
                     )}
-                    {a.monto && (
+                    {a.monto_creditos && (
                       <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                        Apostado: <strong style={{ color: '#e2e8f0' }}>${Number(a.monto).toLocaleString('es-CO')}</strong>
+                        Apostado: <strong style={{ color: '#e2e8f0' }}>{Number(a.monto_creditos).toLocaleString('es-CO')} CR</strong>
                       </span>
                     )}
-                    {a.ganancia_potencial && (
+                    {a.ganancia_potencial > 0 && (
                       <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
-                        Potencial: <strong style={{ color: '#8dc63f' }}>${Number(a.ganancia_potencial).toLocaleString('es-CO')}</strong>
+                        Potencial: <strong style={{ color: '#8dc63f' }}>{Number(a.ganancia_potencial).toLocaleString('es-CO')} CR</strong>
+                      </span>
+                    )}
+                    {a.ganancia_real > 0 && a.estado === 'GANADA' && (
+                      <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
+                        Ganancia: <strong style={{ color: '#8dc63f' }}>+{Number(a.ganancia_real).toLocaleString('es-CO')} CR</strong>
                       </span>
                     )}
                   </div>
-                  {a.creado_en && (
+                  {a.created_at && (
                     <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginTop: 4 }}>
-                      {new Date(a.creado_en).toLocaleString('es-CO')}
+                      {new Date(a.created_at).toLocaleString('es-CO')}
                     </div>
                   )}
                 </div>

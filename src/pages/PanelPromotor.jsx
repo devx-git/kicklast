@@ -1556,6 +1556,250 @@ function EventosTab({ eventos, promotorId }) {
   );
 }
 
+// ── USUARIOS TAB ──────────────────────────────────────────────────────────
+function UsuariosTab() {
+  const [data,       setData]       = useState(null);   // { pais, total, usuarios[] }
+  const [loading,    setLoading]    = useState(true);
+  const [busqueda,   setBusqueda]   = useState('');
+  const [msg,        setMsg]        = useState('');
+  const [err,        setErr]        = useState('');
+
+  // Expandido: null | { type:'edit'|'pass', id }
+  const [expandido,  setExpandido]  = useState(null);
+
+  // Formularios inline
+  const [editForm,   setEditForm]   = useState({ nombre: '', email: '', telefono: '' });
+  const [passForm,   setPassForm]   = useState('');
+  const [saving,     setSaving]     = useState(false);
+
+  const cargar = useCallback((q = busqueda) => {
+    setLoading(true);
+    const qs = q.trim() ? `?busqueda=${encodeURIComponent(q.trim())}` : '';
+    api.get(`/promotor/usuarios${qs}`)
+      .then(r => setData(r.data))
+      .catch(() => setErr('No se pudo cargar la lista de usuarios'))
+      .finally(() => setLoading(false));
+  }, [busqueda]);
+
+  useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const flash = (m, isErr = false) => {
+    if (isErr) setErr(m); else setMsg(m);
+    setTimeout(() => { setMsg(''); setErr(''); }, 3500);
+  };
+
+  const abrirEditar = (u) => {
+    setEditForm({ nombre: u.nombre || '', email: u.email || '', telefono: u.telefono === '—' ? '' : (u.telefono || '') });
+    setExpandido({ type: 'edit', id: u.id });
+  };
+
+  const guardarEdicion = async (id) => {
+    setSaving(true);
+    try {
+      await api.patch(`/promotor/usuarios/${id}`, editForm);
+      flash('✓ Usuario actualizado');
+      setExpandido(null);
+      cargar();
+    } catch (e) {
+      flash(e.response?.data?.message || 'Error al actualizar', true);
+    } finally { setSaving(false); }
+  };
+
+  const toggleEstado = async (id) => {
+    try {
+      const r = await api.patch(`/promotor/usuarios/${id}/estado`);
+      flash(`✓ Usuario ${r.data.activo ? 'activado' : 'desactivado'}`);
+      cargar();
+    } catch (e) {
+      flash(e.response?.data?.message || 'Error al cambiar estado', true);
+    }
+  };
+
+  const resetPass = async (id) => {
+    if (!passForm || passForm.length < 6) { flash('La contraseña debe tener al menos 6 caracteres', true); return; }
+    setSaving(true);
+    try {
+      await api.post(`/promotor/usuarios/${id}/reset-password`, { password: passForm });
+      flash('✓ Contraseña actualizada');
+      setExpandido(null);
+      setPassForm('');
+    } catch (e) {
+      flash(e.response?.data?.message || 'Error al actualizar contraseña', true);
+    } finally { setSaving(false); }
+  };
+
+  const cerrar = () => { setExpandido(null); setPassForm(''); };
+
+  const fmtFecha = (iso) => iso ? new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+  return (
+    <div>
+      {/* Mensajes */}
+      {(msg || err) && (
+        <div style={{ background: err ? '#1a0808' : '#0f1a0f', border: `1px solid ${err ? '#f8717140' : '#8dc63f40'}`, color: err ? '#f87171' : '#8dc63f', fontFamily: 'Roboto, sans-serif', fontSize: 13, borderRadius: 6, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {msg || err}
+          <button onClick={() => { setMsg(''); setErr(''); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      {/* Header + buscador */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 700, color: '#fff' }}>
+            Usuarios de {data?.pais || '…'}
+          </div>
+          <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d' }}>
+            {loading ? 'Cargando…' : `${data?.total ?? 0} usuarios registrados`}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && cargar()}
+            placeholder="Buscar por nombre o email…"
+            style={{ ...INPUT, width: 240, padding: '8px 12px', fontSize: 13 }}
+          />
+          <button onClick={() => cargar()} style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700, border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}>
+            BUSCAR
+          </button>
+          <button onClick={() => { setBusqueda(''); cargar(''); }} style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 12, border: '1px solid #2a3550', borderRadius: 6, padding: '8px 12px', cursor: 'pointer' }}>
+            ↻
+          </button>
+        </div>
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#8dc63f', fontFamily: 'Oswald, sans-serif' }}>Cargando...</div>}
+
+      {!loading && (!data?.usuarios?.length) && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#4a5568', fontFamily: 'Roboto, sans-serif', fontSize: 13, background: '#0f1420', borderRadius: 10, border: '1px dashed #1e2a3a' }}>
+          No hay usuarios registrados en {data?.pais || 'tu país'}{busqueda ? ` que coincidan con "${busqueda}"` : ''}.
+        </div>
+      )}
+
+      {/* Lista de usuarios */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {(data?.usuarios || []).map(u => {
+          const isEditOpen = expandido?.type === 'edit' && expandido.id === u.id;
+          const isPassOpen = expandido?.type === 'pass' && expandido.id === u.id;
+
+          return (
+            <div key={u.id} style={{ background: '#0f1420', border: `1px solid ${u.activo ? '#1e2a3a' : '#4a556830'}`, borderRadius: 10, padding: '14px 16px', opacity: u.activo ? 1 : 0.75 }}>
+              {/* Fila principal */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {/* Info básica */}
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>{u.nombre}</span>
+                    <Badge color={u.activo ? '#8dc63f' : '#f87171'}>{u.activo ? 'ACTIVO' : 'INACTIVO'}</Badge>
+                    {u.rol && u.rol !== 'USER' && <Badge color="#a78bfa">{u.rol}</Badge>}
+                  </div>
+                  <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginTop: 3 }}>{u.email}</div>
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#00d4ff' }}>{u.vidas}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.06em' }}>VIDAS</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#f59e0b' }}>{Number(u.creditos).toLocaleString('es-CO')}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.06em' }}>CRÉDITOS</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#a78bfa' }}>{u.predicciones}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.06em' }}>PREDS</div>
+                  </div>
+                  <div style={{ textAlign: 'center', minWidth: 70 }}>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#6b7a8d' }}>{fmtFecha(u.fecha_creacion)}</div>
+                    <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.06em' }}>REGISTRO</div>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button onClick={() => isEditOpen ? cerrar() : abrirEditar(u)}
+                    style={{ background: isEditOpen ? '#8dc63f20' : '#1e2535', color: isEditOpen ? '#8dc63f' : '#c0cad8', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, border: `1px solid ${isEditOpen ? '#8dc63f40' : '#2a3550'}`, borderRadius: 5, padding: '6px 11px', cursor: 'pointer' }}>
+                    ✏️ EDITAR
+                  </button>
+                  <button onClick={() => toggleEstado(u.id)}
+                    style={{ background: u.activo ? '#1a0808' : '#0a1a0a', color: u.activo ? '#f87171' : '#8dc63f', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, border: `1px solid ${u.activo ? '#f8717125' : '#8dc63f25'}`, borderRadius: 5, padding: '6px 11px', cursor: 'pointer' }}>
+                    {u.activo ? '🔒 DESACTIVAR' : '✅ ACTIVAR'}
+                  </button>
+                  <button onClick={() => { isPassOpen ? cerrar() : setExpandido({ type: 'pass', id: u.id }); setPassForm(''); }}
+                    style={{ background: isPassOpen ? '#1a0a2a' : '#1e2535', color: isPassOpen ? '#a78bfa' : '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 10, fontWeight: 700, border: `1px solid ${isPassOpen ? '#a78bfa30' : '#2a3550'}`, borderRadius: 5, padding: '6px 11px', cursor: 'pointer' }}>
+                    🔑 CLAVE
+                  </button>
+                </div>
+              </div>
+
+              {/* Panel EDITAR */}
+              {isEditOpen && (
+                <div style={{ marginTop: 14, borderTop: '1px solid #1e2a3a', paddingTop: 14 }}>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.08em', marginBottom: 12 }}>EDITAR DATOS</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                    {[
+                      { name: 'nombre',   label: 'Nombre',   placeholder: 'Nombre del usuario' },
+                      { name: 'email',    label: 'Email',    placeholder: 'correo@ejemplo.com' },
+                      { name: 'telefono', label: 'Teléfono', placeholder: '+57 300 000 0000' },
+                    ].map(f => (
+                      <div key={f.name}>
+                        <label style={{ ...LABEL }}>{f.label}</label>
+                        <input
+                          value={editForm[f.name]}
+                          onChange={e => setEditForm(p => ({ ...p, [f.name]: e.target.value }))}
+                          placeholder={f.placeholder}
+                          style={{ ...INPUT, fontSize: 13, padding: '8px 10px' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button onClick={() => guardarEdicion(u.id)} disabled={saving}
+                      style={{ background: '#8dc63f', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, border: 'none', borderRadius: 5, padding: '8px 18px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                      {saving ? 'Guardando…' : 'GUARDAR'}
+                    </button>
+                    <button onClick={cerrar} style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, border: 'none', borderRadius: 5, padding: '8px 14px', cursor: 'pointer' }}>
+                      CANCELAR
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Panel RESET PASSWORD */}
+              {isPassOpen && (
+                <div style={{ marginTop: 14, borderTop: '1px solid #1e2a3a', paddingTop: 14 }}>
+                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#a78bfa', letterSpacing: '0.08em', marginBottom: 12 }}>NUEVA CONTRASEÑA</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <label style={{ ...LABEL }}>Contraseña (mín. 6 caracteres)</label>
+                      <input
+                        type="password"
+                        value={passForm}
+                        onChange={e => setPassForm(e.target.value)}
+                        placeholder="Nueva contraseña…"
+                        style={{ ...INPUT, fontSize: 13, padding: '8px 10px' }}
+                      />
+                    </div>
+                    <button onClick={() => resetPass(u.id)} disabled={saving}
+                      style={{ background: '#a78bfa', color: '#0a0d14', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, border: 'none', borderRadius: 5, padding: '9px 18px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                      {saving ? 'Guardando…' : 'ACTUALIZAR'}
+                    </button>
+                    <button onClick={cerrar} style={{ background: '#1e2535', color: '#6b7a8d', fontFamily: 'Oswald, sans-serif', fontSize: 11, border: 'none', borderRadius: 5, padding: '9px 14px', cursor: 'pointer' }}>
+                      CANCELAR
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN ───────────────────────────────────────────────────────────────────
 export default function PanelPromotor() {
   const [tab, setTab] = useState('dashboard');
@@ -1627,6 +1871,7 @@ export default function PanelPromotor() {
           <TabBtn active={tab === 'recargas'} onClick={() => setTab('recargas')}>RECARGAS</TabBtn>
           <TabBtn active={tab === 'solicitudes-recarga'} onClick={() => setTab('solicitudes-recarga')}>📥 SOLICITUDES</TabBtn>
           <TabBtn active={tab === 'metodos-pago'} onClick={() => setTab('metodos-pago')}>💳 MÉTODOS PAGO</TabBtn>
+          <TabBtn active={tab === 'usuarios'} onClick={() => setTab('usuarios')}>👥 USUARIOS</TabBtn>
           <TabBtn active={tab === 'partidos'} onClick={() => setTab('partidos')}>⚽ RESULTADOS</TabBtn>
           <TabBtn active={tab === 'perfil'} onClick={() => setTab('perfil')}>👤 MI PERFIL</TabBtn>
         </div>
@@ -1640,6 +1885,7 @@ export default function PanelPromotor() {
         {tab === 'solicitudes-recarga' && <SolicitudesRecargaManualTab />}
         {tab === 'metodos-pago'       && <MetodosPagoTab />}
         {tab === 'eventos' && <EventosTab eventos={eventos} promotorId={perfil?.promotorId} />}
+        {tab === 'usuarios'  && <UsuariosTab />}
         {tab === 'partidos' && <PartidosResultadosTab isAdmin={false} />}
         {tab === 'perfil'   && <EditarPerfil perfil={perfil} />}
       </div>

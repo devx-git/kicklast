@@ -31,6 +31,18 @@ function fmtFecha(f) {
   });
 }
 
+/** Muestra el nombre del equipo; abrevia con iniciales si es muy largo */
+function fmtEquipo(nombre, maxLen = 13) {
+  if (!nombre) return '?';
+  if (nombre.length <= maxLen) return nombre;
+  const words = nombre.trim().split(/\s+/);
+  if (words.length >= 2) {
+    const initials = words.map(w => w[0].toUpperCase()).join('.');
+    if (initials.length <= 6) return initials + '.';
+  }
+  return nombre.slice(0, maxLen - 1) + '…';
+}
+
 const TIPO_OPS = [
   { val: 'GURU',    label: '🎯 PREDICCIÓN',    desc: 'Solo preguntas de Predicción', color: '#a78bfa' },
   { val: 'APUESTA', label: '🎲 APUESTA', desc: 'Solo apuestas 1 · X · 2',  color: '#f59e0b' },
@@ -283,21 +295,30 @@ function PartidoConfigRow({ partido, onSaved }) {
                     Multiplica la apuesta ganadora. Mínimo 1.01. Ej: Local 2.10, Empate 3.40, Visitante 2.80
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
+                    {/* LOCAL */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d', marginBottom: 4 }}>
-                        1 LOCAL
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, color: '#00d4ff', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={partido.equipo_local || partido.descripcion_local}>
+                          🏠 {fmtEquipo(partido.equipo_local || partido.descripcion_local)}
+                        </div>
+                        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.05em' }}>1 LOCAL</div>
                       </div>
                       <input
                         type="number" step="0.01" min="1.01"
                         value={cLocal}
                         onChange={e => setCLocal(e.target.value)}
                         placeholder="2.10"
-                        style={{ ...INPUT_S, fontFamily: 'monospace', textAlign: 'center' }}
+                        style={{ ...INPUT_S, fontFamily: 'monospace', textAlign: 'center', borderColor: '#00d4ff30' }}
                       />
                     </div>
+                    {/* EMPATE */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d', marginBottom: 4 }}>
-                        X EMPATE
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, color: '#6b7a8d', lineHeight: 1.2 }}>
+                          ⚖ EMPATE
+                        </div>
+                        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.05em' }}>X</div>
                       </div>
                       <input
                         type="number" step="0.01" min="1.01"
@@ -307,16 +328,21 @@ function PartidoConfigRow({ partido, onSaved }) {
                         style={{ ...INPUT_S, fontFamily: 'monospace', textAlign: 'center' }}
                       />
                     </div>
+                    {/* VISITANTE */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 10, color: '#6b7a8d', marginBottom: 4 }}>
-                        2 VISITANTE
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, color: '#f59e0b', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={partido.equipo_visitante || partido.descripcion_visitante}>
+                          ✈ {fmtEquipo(partido.equipo_visitante || partido.descripcion_visitante)}
+                        </div>
+                        <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 9, color: '#4a5568', letterSpacing: '0.05em' }}>2 VISITANTE</div>
                       </div>
                       <input
                         type="number" step="0.01" min="1.01"
                         value={cVisit}
                         onChange={e => setCVisit(e.target.value)}
                         placeholder="2.80"
-                        style={{ ...INPUT_S, fontFamily: 'monospace', textAlign: 'center' }}
+                        style={{ ...INPUT_S, fontFamily: 'monospace', textAlign: 'center', borderColor: '#f59e0b30' }}
                       />
                     </div>
                   </div>
@@ -343,16 +369,20 @@ function PartidoConfigRow({ partido, onSaved }) {
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[
-                        { key: '1', label: 'LOCAL',     monto: livePool.distribucion?.local     ?? 0, cuota: livePool.cuota_local },
-                        { key: 'X', label: 'EMPATE',    monto: livePool.distribucion?.empate    ?? 0, cuota: livePool.cuota_empate },
-                        { key: '2', label: 'VISITANTE', monto: livePool.distribucion?.visitante ?? 0, cuota: livePool.cuota_visitante },
+                        { key: '1', label: 'LOCAL',     monto: livePool.distribucion?.local     ?? 0, cuota: livePool.cuota_local,     equipo: partido.equipo_local     || partido.descripcion_local,     color: '#00d4ff' },
+                        { key: 'X', label: 'EMPATE',    monto: livePool.distribucion?.empate    ?? 0, cuota: livePool.cuota_empate,    equipo: null,                                                       color: '#6b7a8d' },
+                        { key: '2', label: 'VISITANTE', monto: livePool.distribucion?.visitante ?? 0, cuota: livePool.cuota_visitante, equipo: partido.equipo_visitante || partido.descripcion_visitante, color: '#f59e0b' },
                       ].map(o => {
                         const pct = livePool.pool_total > 0
                           ? Math.round((Number(o.monto) / Number(livePool.pool_total)) * 100)
                           : 33;
                         return (
                           <div key={o.key} style={{ flex: 1, textAlign: 'center' }}>
-                            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 8, color: '#6b7a8d', marginBottom: 3 }}>{o.key} {o.label}</div>
+                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 8, fontWeight: 700, color: o.color, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                              title={o.equipo}>
+                              {o.equipo ? fmtEquipo(o.equipo, 9) : 'EMPATE'}
+                            </div>
+                            <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 7, color: '#4a5568', marginBottom: 3 }}>{o.key} {o.label}</div>
                             <div style={{ background: '#1e2a3a', borderRadius: 2, height: 3, overflow: 'hidden', marginBottom: 3 }}>
                               <div style={{ width: `${pct}%`, height: '100%', background: '#f59e0b', transition: 'width 0.4s' }} />
                             </div>

@@ -869,7 +869,7 @@ function DashboardTab() {
     _gurus:    ev.gurus_vendidos ?? ev.participantes_unicos ?? '—',
     _apuestas: typeof ev.apuestas === 'object' ? (ev.apuestas?.total ?? 0) : (ev.apuestas ?? '—'),
     _recargas: typeof ev.recargas === 'object' ? (ev.recargas?.total ?? 0) : (ev.recargas ?? '—'),
-    _pozo_cr:  Number(ev.pozo_actual ?? ev.acumulado_actual ?? 0),
+    _pozo_cr:  Number(ev.pozo_actual ?? ev.acumulado_base ?? 0),
     _id:       ev.id,
   }));
 
@@ -879,18 +879,27 @@ function DashboardTab() {
     { key: '_apuestas', label: 'APUESTAS',  sortable: true },
     { key: '_recargas', label: 'RECARGAS',  sortable: true },
     {
-      key: '_pozo_cr', label: 'POZO (CR)', sortable: true,
+      key: '_pozo_cr', label: 'POZO BASE (CR)', sortable: true,
       render: (val) => (
         <div>
           <span style={{ fontFamily: 'Oswald, sans-serif', color: '#f59e0b', fontWeight: 700 }}>{Number(val).toLocaleString('es-CO')} cr</span>
-          <div style={{ fontSize: 9, color: '#4a5568' }}>≈ ${Number(val).toLocaleString('es-CO')} USD</div>
+          <div style={{ fontSize: 9, color: '#4a5568' }}>premio base configurado</div>
         </div>
       ),
     },
   ];
 
+  const pais = data.resumen?.pais_promotor;
+
   return (
     <div>
+      {pais && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '8px 14px', background: '#0f1a0f', border: '1px solid #8dc63f30', borderRadius: 8 }}>
+          <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 12, color: '#8dc63f', letterSpacing: '0.08em' }}>MOSTRANDO MÉTRICAS DE</span>
+          <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff' }}>{pais.toUpperCase()}</span>
+          <span style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568' }}>— predicciones, apuestas y recargas filtradas por país</span>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
         {resumenCards.map(c => (
           <div key={c.label} style={CARD}>
@@ -1480,7 +1489,7 @@ function EventosTab({ eventos, promotorId }) {
   const flat = eventos.map(ev => ({
     ...ev,
     _nombre: ev.nombre || '—',
-    _pozo_cr: Number(ev.acumulado_actual || 0),
+    _pozo_cr: Number(ev.acumulado_base || 0),
     _casa: `${ev.porcentaje_casa ?? 0}%`,
     _pozo_pct: `${ev.porcentaje_pozo ?? 0}%`,
     _estado: ev.estado || 'ACTIVO',
@@ -1494,7 +1503,7 @@ function EventosTab({ eventos, promotorId }) {
   const columns = [
     { key: '_nombre', label: 'EVENTO', sortable: true },
     {
-      key: '_pozo_cr', label: 'POZO (CR)', sortable: true,
+      key: '_pozo_cr', label: 'POZO BASE (CR)', sortable: true,
       render: (val) => (
         <div>
           <span style={{ fontFamily: 'Oswald, sans-serif', color: '#f59e0b', fontWeight: 700 }}>{Number(val).toLocaleString('es-CO')} cr</span>

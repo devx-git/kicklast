@@ -1893,10 +1893,10 @@ export default function PanelPromotor() {
         {tab === 'recargas'           && <RecargasPromotorTab />}
         {tab === 'solicitudes-recarga' && <SolicitudesRecargaManualTab />}
         {tab === 'metodos-pago'       && <MetodosPagoTab />}
-        {tab === 'eventos' && <EventosTab eventos={eventos} promotorId={perfil?.promotorId} />}
+        {tab === 'eventos' && <EventosTab eventos={eventos} promotorId={perfil?.promotor?.id} />}
         {tab === 'usuarios'  && <UsuariosTab />}
         {tab === 'partidos' && <PartidosResultadosTab isAdmin={false} />}
-        {tab === 'perfil'   && <EditarPerfil perfil={perfil} />}
+        {tab === 'perfil'   && <EditarPerfil perfil={perfil} onActualizado={updated => setPerfil(p => ({ ...p, ...updated }))} />}
       </div>
     </div>
   );

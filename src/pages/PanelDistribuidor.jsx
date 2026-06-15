@@ -1719,7 +1719,7 @@ export default function PanelDistribuidor() {
         {tab === 'mispines'   && <MisPinesTab distribuidorNombre={perfil?.nombre} />}
         {tab === 'pines'      && <SolicitarPinesTab />}
         {tab === 'pin'        && <CanjearPinTab distribuidorNombre={perfil?.nombre} />}
-        {tab === 'cuenta'     && <EditarPerfil perfil={perfil} />}
+        {tab === 'cuenta'     && <EditarPerfil perfil={perfil} onActualizado={updated => setPerfil(p => ({ ...p, ...updated }))} />}
       </div>
     </div>
   );

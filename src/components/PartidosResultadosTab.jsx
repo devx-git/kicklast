@@ -451,6 +451,19 @@ function PartidoRow({ partido, onSaved }) {
   );
 }
 
+// Ligas más usadas — presets para importar rápido
+const LIGAS_PRESET = [
+  { id: 1,   nombre: '🏆 FIFA World Cup' },
+  { id: 239, nombre: '🇨🇴 Primera A Colombia' },
+  { id: 2,   nombre: '⭐ UEFA Champions League' },
+  { id: 9,   nombre: '🌎 Copa América' },
+  { id: 13,  nombre: '🏆 Copa Libertadores' },
+  { id: 39,  nombre: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League' },
+  { id: 140, nombre: '🇪🇸 La Liga' },
+  { id: 135, nombre: '🇮🇹 Serie A' },
+  { id: 78,  nombre: '🇩🇪 Bundesliga' },
+];
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function PartidosResultadosTab({ isAdmin = false }) {
   const [eventos, setEventos]             = useState([]);
@@ -470,6 +483,13 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
   const [modalData, setModalData]         = useState(null);
   const [flujomsg, setFlujomsg]           = useState('');
   const [flujoaccion, setFlujoaccion]     = useState('');
+
+  // ── Import fixtures desde api-football ──────────────────────────────
+  const [showImport, setShowImport]       = useState(false);
+  const [ligaId, setLigaId]               = useState('');
+  const [temporada, setTemporada]         = useState(new Date().getFullYear().toString());
+  const [importing, setImporting]         = useState(false);
+  const [importMsg, setImportMsg]         = useState('');
 
   const cargarEventos = useCallback(() => {
     setLoadingEv(true);
@@ -523,6 +543,26 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
       const m = e.response?.data?.message;
       setSyncMsg('⚠ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al sincronizar'));
     } finally { setSyncing(false); }
+  };
+
+  const importarFixtures = async () => {
+    if (!eventoId || !ligaId || !temporada) return;
+    setImporting(true); setImportMsg('');
+    try {
+      const { data } = await api.post('/sports/importar-fixtures', {
+        liga_id:   Number(ligaId),
+        temporada: Number(temporada),
+        evento_id: eventoId,
+      });
+      setImportMsg(
+        `✓ ${data.creados} creados · ${data.actualizados} actualizados · ${data.omitidos} sin cambios` +
+        (data.errores > 0 ? ` · ⚠ ${data.errores} errores` : '')
+      );
+      cargarPartidos(eventoId);
+    } catch (e) {
+      const m = e.response?.data?.message;
+      setImportMsg('✗ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al importar'));
+    } finally { setImporting(false); }
   };
 
   const accionFlujo = async (tipo) => {
@@ -606,6 +646,14 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {isAdmin && (
+                <button
+                  onClick={() => { setShowImport(s => !s); setImportMsg(''); }}
+                  style={{ background: showImport ? '#1e3a5f' : '#1e2535', color: '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: `1px solid ${showImport ? '#3b82f660' : '#3b82f630'}`, cursor: 'pointer', letterSpacing: '0.04em' }}
+                  title="Importar todos los fixtures de un torneo desde api-football">
+                  📥 IMPORTAR FIXTURES
+                </button>
+              )}
               <button onClick={() => sincronizarApi(false)} disabled={syncing || resumen.conApi === 0}
                 style={{ background: syncing ? '#1e2535' : '#3b82f620', color: syncing ? '#4a5568' : '#3b82f6', fontFamily: 'Oswald, sans-serif', fontSize: 11, fontWeight: 700, padding: '9px 16px', borderRadius: 6, border: '1px solid #3b82f630', cursor: (syncing || resumen.conApi === 0) ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}
                 title="Sincroniza solo los partidos PROGRAMADO con api_id">
@@ -622,6 +670,105 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
               </button>
             </div>
           </div>
+
+          {/* ── Panel importar fixtures desde api-football ────────────── */}
+          {showImport && isAdmin && (
+            <div style={{ background: '#0a0f1a', border: '1px solid #3b82f630', borderRadius: 8, padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, color: '#3b82f6', letterSpacing: '0.1em', marginBottom: 12 }}>
+                📥 IMPORTAR FIXTURES DE api-football
+              </div>
+              <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 14, lineHeight: 1.6 }}>
+                Crea automáticamente todos los partidos del torneo (fase de grupos + eliminatorias) con su <code style={{ color: '#3b82f6', background: '#0a0d14', padding: '1px 5px', borderRadius: 3 }}>api_id</code> asignado.
+                Después de importar, el cron de la API los sincroniza cada 60s y actualiza equipos y resultados solos.
+              </div>
+
+              {/* Presets de liga */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginBottom: 7, letterSpacing: '0.05em' }}>LIGAS FRECUENTES</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {LIGAS_PRESET.map(l => (
+                    <button
+                      key={l.id}
+                      onClick={() => setLigaId(String(l.id))}
+                      style={{
+                        background: ligaId === String(l.id) ? '#3b82f6' : '#1e2535',
+                        color: ligaId === String(l.id) ? '#fff' : '#6b7a8d',
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: 11,
+                        padding: '5px 10px',
+                        borderRadius: 5,
+                        border: `1px solid ${ligaId === String(l.id) ? 'transparent' : '#1e2a3a'}`,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {l.nombre}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Inputs liga_id + temporada */}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+                <div>
+                  <label style={LABEL}>LIGA ID (api-football)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={ligaId}
+                    onChange={e => setLigaId(e.target.value)}
+                    placeholder="Ej: 1"
+                    style={{ ...INPUT, width: 120, fontFamily: 'monospace' }}
+                  />
+                </div>
+                <div>
+                  <label style={LABEL}>TEMPORADA (AÑO)</label>
+                  <input
+                    type="number"
+                    min="2020"
+                    max="2030"
+                    value={temporada}
+                    onChange={e => setTemporada(e.target.value)}
+                    placeholder="2026"
+                    style={{ ...INPUT, width: 100, fontFamily: 'monospace' }}
+                  />
+                </div>
+                <button
+                  onClick={importarFixtures}
+                  disabled={importing || !ligaId || !temporada}
+                  style={{
+                    background: importing || !ligaId || !temporada ? '#1e2535' : '#3b82f6',
+                    color: importing || !ligaId || !temporada ? '#4a5568' : '#fff',
+                    fontFamily: 'Oswald, sans-serif',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '10px 20px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: importing || !ligaId || !temporada ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {importing ? '⏳ IMPORTANDO...' : '📥 IMPORTAR'}
+                </button>
+              </div>
+
+              {importMsg && (
+                <div style={{
+                  padding: '9px 13px',
+                  borderRadius: 6,
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: 12,
+                  background: importMsg.startsWith('✓') ? 'rgba(141,198,63,0.08)' : 'rgba(248,113,113,0.08)',
+                  border: `1px solid ${importMsg.startsWith('✓') ? '#8dc63f30' : '#f8717130'}`,
+                  color: importMsg.startsWith('✓') ? '#8dc63f' : '#f87171',
+                }}>
+                  {importMsg}
+                </div>
+              )}
+            </div>
+          )}
 
           {syncMsg && (
             <div style={{ background: syncMsg.startsWith('✓') ? 'rgba(141,198,63,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${syncMsg.startsWith('✓') ? '#8dc63f30' : '#f59e0b30'}`, borderRadius: 6, padding: '10px 14px', fontFamily: 'Roboto, sans-serif', fontSize: 13, color: syncMsg.startsWith('✓') ? '#8dc63f' : '#f59e0b', marginBottom: 14 }}>

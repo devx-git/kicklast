@@ -554,11 +554,8 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
         temporada: Number(temporada),
         evento_id: eventoId,
       });
-      setImportMsg(
-        `✓ ${data.creados} creados · ${data.actualizados} actualizados · ${data.omitidos} sin cambios` +
-        (data.errores > 0 ? ` · ⚠ ${data.errores} errores` : '')
-      );
-      cargarPartidos(eventoId);
+      setImportMsg(data.mensaje || '✓ Importación completada');
+      if (data.ok) cargarPartidos(eventoId);
     } catch (e) {
       const m = e.response?.data?.message;
       setImportMsg('✗ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al importar'));
@@ -678,8 +675,22 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
                 📥 IMPORTAR FIXTURES DE api-football
               </div>
               <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 12, color: '#6b7a8d', marginBottom: 14, lineHeight: 1.6 }}>
-                Crea automáticamente todos los partidos del torneo (fase de grupos + eliminatorias) con su <code style={{ color: '#3b82f6', background: '#0a0d14', padding: '1px 5px', borderRadius: 3 }}>api_id</code> asignado.
-                Después de importar, el cron de la API los sincroniza cada 60s y actualiza equipos y resultados solos.
+                Importa todos los fixtures del torneo desde api-football y asigna el <code style={{ color: '#3b82f6', background: '#0a0d14', padding: '1px 5px', borderRadius: 3 }}>api_id</code> a cada partido.
+                Si los partidos ya existen (creados manual), los <b style={{ color: '#8dc63f' }}>vincula automáticamente</b> por nombre de equipo y fecha.
+                Una vez vinculados, el cron los sincroniza cada 60s y actualiza resultados solos.
+              </div>
+              <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid #f59e0b20', borderRadius: 6, padding: '8px 12px', marginBottom: 14, fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#f59e0b', lineHeight: 1.6 }}>
+                💡 Si el resultado muestra <b>"0 fixtures"</b>, el liga_id puede ser incorrecto para esta edición del torneo.
+                Verifica el ID real en{' '}
+                <a
+                  href="https://dashboard.api-football.com/soccer/ids"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#3b82f6' }}
+                >
+                  dashboard.api-football.com → Soccer → Leagues
+                </a>
+                .
               </div>
 
               {/* Presets de liga */}

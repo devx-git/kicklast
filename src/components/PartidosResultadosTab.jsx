@@ -490,6 +490,8 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
   const [temporada, setTemporada]         = useState(new Date().getFullYear().toString());
   const [importing, setImporting]         = useState(false);
   const [importMsg, setImportMsg]         = useState('');
+  const [detecting, setDetecting]         = useState(false);
+  const [detectMsg, setDetectMsg]         = useState('');
 
   const cargarEventos = useCallback(() => {
     setLoadingEv(true);
@@ -543,6 +545,24 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
       const m = e.response?.data?.message;
       setSyncMsg('⚠ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al sincronizar'));
     } finally { setSyncing(false); }
+  };
+
+  const detectarLiga = async () => {
+    if (!eventoId) return;
+    setDetecting(true); setDetectMsg('');
+    try {
+      const { data } = await api.get(`/sports/detectar-liga?evento_id=${eventoId}`);
+      if (data.ok) {
+        setLigaId(String(data.liga_id));
+        setTemporada(String(data.temporada));
+        setDetectMsg(`✓ Liga detectada: ${data.liga_nombre} (ID: ${data.liga_id}) — Ejemplo: ${data.partido_ejemplo}`);
+      } else {
+        setDetectMsg('⚠ ' + (data.mensaje || 'No se pudo detectar la liga'));
+      }
+    } catch (e) {
+      const m = e.response?.data?.message;
+      setDetectMsg('✗ ' + (Array.isArray(m) ? m.join(', ') : m || 'Error al detectar'));
+    } finally { setDetecting(false); }
   };
 
   const importarFixtures = async () => {
@@ -693,9 +713,42 @@ export default function PartidosResultadosTab({ isAdmin = false }) {
                 .
               </div>
 
+              {/* Auto-detect liga */}
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  onClick={detectarLiga}
+                  disabled={detecting}
+                  style={{
+                    background: detecting ? '#1e2535' : 'rgba(167,139,250,0.12)',
+                    color: detecting ? '#4a5568' : '#a78bfa',
+                    fontFamily: 'Oswald, sans-serif', fontSize: 12, fontWeight: 700,
+                    padding: '9px 18px', borderRadius: 6,
+                    border: '1px solid #a78bfa30',
+                    cursor: detecting ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {detecting ? '🔍 BUSCANDO...' : '🔍 DETECTAR LIGA AUTOMÁTICAMENTE'}
+                </button>
+                {detectMsg && (
+                  <div style={{
+                    marginTop: 8, padding: '8px 12px', borderRadius: 6,
+                    fontFamily: 'Roboto, sans-serif', fontSize: 12,
+                    background: detectMsg.startsWith('✓') ? 'rgba(141,198,63,0.08)' : 'rgba(245,158,11,0.08)',
+                    border: `1px solid ${detectMsg.startsWith('✓') ? '#8dc63f30' : '#f59e0b30'}`,
+                    color: detectMsg.startsWith('✓') ? '#8dc63f' : '#f59e0b',
+                  }}>
+                    {detectMsg}
+                    {detectMsg.startsWith('✓') && (
+                      <span style={{ color: '#6b7a8d', marginLeft: 8 }}>— ya está pre-cargado abajo ↓</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Presets de liga */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginBottom: 7, letterSpacing: '0.05em' }}>LIGAS FRECUENTES</div>
+                <div style={{ fontFamily: 'Roboto, sans-serif', fontSize: 11, color: '#4a5568', marginBottom: 7, letterSpacing: '0.05em' }}>O SELECCIONA UNA LIGA FRECUENTE</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {LIGAS_PRESET.map(l => (
                     <button
